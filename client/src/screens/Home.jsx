@@ -20,16 +20,21 @@ function Home({ userId, onCreateGame, onJoinGame, onProfile, onSignUp, onSignIn,
     <div className="home">
       <div className="home__header">
         {userId && (
-          <button className="home__profile-btn btn btn--ghost" onClick={onProfile}>
+          <button className="home__profile-btn btn btn--secondary" onClick={onProfile}>
             Profile
           </button>
         )}
-        <button className="home__profile-btn btn btn--ghost" onClick={onSignIn}>
+        <button className="home__profile-btn btn btn--secondary" onClick={onSignIn}>
           Sign in
         </button>
-        <button className="home__profile-btn btn btn--ghost" onClick={onSignUp}>
+        <button className="home__profile-btn btn btn--primary" onClick={onSignUp}>
           Create account
         </button>
+      </div>
+
+      <div className="home__auth-strip">
+        <button className="btn btn--primary" onClick={onSignUp}>Create account</button>
+        <button className="btn btn--secondary" onClick={onSignIn}>Sign in</button>
       </div>
 
       <div className="home__hero">
@@ -41,12 +46,12 @@ function Home({ userId, onCreateGame, onJoinGame, onProfile, onSignUp, onSignIn,
         <div className="home__auth-gate">
           <h3 className="home__auth-title">Sign in to play</h3>
           <p className="home__auth-msg">Create an account or sign in with your username and password.</p>
-          <div className="home__actions">
-            <button className="btn btn--primary" onClick={onSignIn}>
-              Sign In
-            </button>
-            <button className="btn btn--secondary" onClick={onSignUp}>
+          <div className="home__actions home__auth-buttons">
+            <button className="btn btn--primary btn--large" onClick={onSignUp}>
               Create Account
+            </button>
+            <button className="btn btn--secondary btn--large" onClick={onSignIn}>
+              Sign In
             </button>
           </div>
         </div>

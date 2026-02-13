@@ -737,12 +737,31 @@ button {
   position: absolute;
   top: 1rem;
   right: 1rem;
+  left: 1rem;
   display: flex;
   gap: 0.5rem;
+  justify-content: flex-end;
+  z-index: 10;
 }
 .home__profile-btn {
   font-size: 0.9rem;
   padding: 0.5rem 1rem;
+}
+.home__auth-buttons .btn {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  font-size: 1.1rem;
+}
+.home__auth-strip {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.home__auth-strip .btn {
+  padding: 0.75rem 1.25rem;
+  font-size: 1rem;
 }
 .home__auth-gate {
   width: 100%;

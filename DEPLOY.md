@@ -1,36 +1,20 @@
-# Get Your Updates Live
+# Deploy to Vercel
 
-Your code has Sign In and Create Account, but it’s not on the live site until you deploy.
+## Fixed: npm dependency conflict
 
-## Option A: Push to GitHub (triggers Vercel auto-deploy)
+Added `.npmrc` with `legacy-peer-deps=true` to fix the vercel peer dependency error.
 
-In Terminal:
+## Deploy (run in your Terminal)
 
 ```bash
 cd /Users/joeydias/Desktop/Imposter
-git push origin main
+npm run deploy
 ```
 
-If you see an auth error, either:
+If it prompts for scope/team, choose **joes-projects-d2326431**.
 
-1. **GitHub Desktop**: Open the repo and push from the GUI.
-2. **Personal Access Token**: `git remote set-url origin https://YOUR_USERNAME:YOUR_TOKEN@github.com/jdcolts12/sus.git` then `git push origin main`.
-
----
-
-## Option B: Deploy directly with Vercel CLI
-
+Or run interactively (will prompt for options):
 ```bash
 cd /Users/joeydias/Desktop/Imposter
 npx vercel --prod
 ```
-
-Log in when prompted. This deploys from your local files and skips GitHub.
-
----
-
-## After deploying
-
-- Hard refresh: **Cmd+Shift+R** (Mac) or **Ctrl+Shift+R** (Windows)
-- Or open the site in an **Incognito/Private** window
-- Or clear site data for your app’s domain
