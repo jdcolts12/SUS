@@ -185,7 +185,8 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
+const HOST = process.env.HOST || '0.0.0.0';
+httpServer.listen(PORT, HOST, () => {
   console.log(`Imposter game server running on port ${PORT}`);
   console.log(`Connect clients to http://localhost:${PORT}`);
 });
