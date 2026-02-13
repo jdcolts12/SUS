@@ -737,8 +737,78 @@ button {
   position: absolute;
   top: 1rem;
   right: 1rem;
+  display: flex;
+  gap: 0.5rem;
 }
 .home__profile-btn {
   font-size: 0.9rem;
   padding: 0.5rem 1rem;
+}
+.home__auth-required {
+  padding: 2rem 1rem;
+  text-align: center;
+}
+.home__auth-msg {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Sign In */
+.signin {
+  min-height: 100%;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.signin h2 { margin: 0 0 0.5rem; }
+.signin__hint {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+}
+.signin form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 280px;
+}
+.signin input {
+  padding: 1rem 1.2rem;
+  border-radius: 12px;
+  border: 2px solid var(--surface-light);
+  background: var(--surface);
+  color: var(--text);
+}
+.signin__error {
+  color: var(--accent);
+  margin: 0;
+}
+.signin__switch {
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.btn--link {
+  padding: 0.2rem 0.5rem;
+  font-size: inherit;
+  text-decoration: underline;
+}
+.signup__switch {
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.profile__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 280px;
+}
+.profile__signout {
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 
-function SignUp({ onSignedUp, onBack, onSignIn }) {
+function SignIn({ onSignedIn, onBack, onSignUp }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -9,21 +9,16 @@ function SignUp({ onSignedUp, onBack, onSignIn }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const trimUser = username.trim();
-    if (!trimUser || trimUser.length < 2) {
-      setError('Username must be at least 2 characters');
-      return;
-    }
-    if (!password || password.length < 4) {
-      setError('Password must be at least 4 characters');
+    if (!username.trim() || !password) {
+      setError('Username and password required');
       return;
     }
     setLoading(true);
     setError('');
     try {
-      const { userId } = await api.createUser(trimUser, password);
+      const { userId } = await api.signIn(username.trim(), password);
       localStorage.setItem('userId', userId);
-      onSignedUp?.(userId);
+      onSignedIn?.(userId);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -32,37 +27,37 @@ function SignUp({ onSignedUp, onBack, onSignIn }) {
   };
 
   return (
-    <div className="signup">
-      <h2>Create Account</h2>
-      <p className="signup__hint">Usernames are unique and can only be used once ever.</p>
+    <div className="signin">
+      <h2>Sign In</h2>
+      <p className="signin__hint">Your login is saved when you reopen the game.</p>
       <form onSubmit={handleSubmit}>
         <input
           type="text"
-          placeholder="Choose a username"
+          placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          maxLength={20}
+          autoComplete="username"
           required
         />
         <input
           type="password"
-          placeholder="Choose a password (min 4 characters)"
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          minLength={4}
+          autoComplete="current-password"
           required
         />
-        {error && <p className="signup__error">{error}</p>}
+        {error && <p className="signin__error">{error}</p>}
         <button type="submit" className="btn btn--primary" disabled={loading}>
-          {loading ? 'Creating...' : 'Create Account'}
+          {loading ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
-      <p className="signup__switch">
-        Already have an account? <button type="button" className="btn btn--ghost btn--link" onClick={onSignIn}>Sign in</button>
+      <p className="signin__switch">
+        Don&apos;t have an account? <button type="button" className="btn btn--ghost btn--link" onClick={onSignUp}>Create account</button>
       </p>
       <button className="btn btn--ghost" onClick={onBack}>Back</button>
     </div>
   );
 }
 
-export default SignUp;
+export default SignIn;

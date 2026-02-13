@@ -3,14 +3,17 @@ import * as db from './db.js';
 
 const router = Router();
 
-// Create account (unique username, only used once ever)
+// Create account (unique username + password)
 router.post('/users', (req, res) => {
   try {
-    const { username } = req.body;
+    const { username, password } = req.body;
     if (!username || typeof username !== 'string' || username.trim().length < 2) {
       return res.status(400).json({ error: 'Username must be at least 2 characters' });
     }
-    const result = db.createUser(username);
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Password required' });
+    }
+    const result = db.createUser(username, password);
     if (result.error) return res.status(400).json({ error: result.error });
     res.json(result);
   } catch (e) {
@@ -18,12 +21,28 @@ router.post('/users', (req, res) => {
   }
 });
 
-// Get user profile
+// Sign in (username + password)
+router.post('/auth/sign-in', (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password required' });
+    }
+    const result = db.signIn(username, password);
+    if (result.error) return res.status(400).json({ error: result.error });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get user profile (exclude password_hash)
 router.get('/users/:id', (req, res) => {
   const user = db.getUser(req.params.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
   const stats = db.getUserStats(req.params.id);
-  res.json({ ...user, stats });
+  const { password_hash, ...safe } = user;
+  res.json({ ...safe, stats });
 });
 
 // Update profile (username, profile_pic, bg_color)

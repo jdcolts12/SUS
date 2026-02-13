@@ -11,7 +11,8 @@ async function fetchApi(path, options = {}) {
 }
 
 export const api = {
-  createUser: (username) => fetchApi('/users', { method: 'POST', body: JSON.stringify({ username }) }),
+  createUser: (username, password) => fetchApi('/users', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  signIn: (username, password) => fetchApi('/auth/sign-in', { method: 'POST', body: JSON.stringify({ username, password }) }),
   getUser: (id) => fetchApi(`/users/${id}`),
   updateUser: (id, updates) => fetchApi(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
   searchUser: (username) => fetchApi(`/users/search/${encodeURIComponent(username)}`),

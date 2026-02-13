@@ -7,6 +7,7 @@ import Profile from './screens/Profile';
 import EditProfile from './screens/EditProfile';
 import Friends from './screens/Friends';
 import SignUp from './screens/SignUp';
+import SignIn from './screens/SignIn';
 
 // In dev: use same host as page (so phone at 192.168.x.x:5173 connects to 192.168.x.x:3001)
 // In prod: MUST set VITE_SOCKET_URL to your Railway server URL
@@ -203,6 +204,7 @@ function App() {
         onEditProfile={() => setScreen('edit-profile')}
         onFriends={() => setScreen('friends')}
         onBack={() => setScreen('home')}
+        onSignOut={() => { localStorage.removeItem('userId'); setUserId(null); setScreen('home'); }}
       />
     );
   }
@@ -226,6 +228,17 @@ function App() {
       <SignUp
         onSignedUp={(id) => { setUserId(id); setScreen('home'); }}
         onBack={() => setScreen('home')}
+        onSignIn={() => setScreen('signin')}
+      />
+    );
+  }
+
+  if (screen === 'signin') {
+    return (
+      <SignIn
+        onSignedIn={(id) => { setUserId(id); setScreen('home'); }}
+        onBack={() => setScreen('home')}
+        onSignUp={() => setScreen('signup')}
       />
     );
   }
@@ -238,6 +251,7 @@ function App() {
         onJoinGame={joinGame}
         onProfile={() => setScreen('profile')}
         onSignUp={() => setScreen('signup')}
+        onSignIn={() => setScreen('signin')}
         error={error}
         connecting={connecting}
       />

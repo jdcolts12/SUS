@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import bcrypt from 'bcryptjs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { mkdirSync, existsSync } from 'fs';
@@ -23,6 +24,7 @@ function initSchema(database) {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
       profile_pic TEXT,
       bg_color TEXT DEFAULT '#1a1a2e',
       created_at INTEGER DEFAULT (strftime('%s','now'))
@@ -63,31 +65,58 @@ function initSchema(database) {
 
     CREATE INDEX IF NOT EXISTS idx_round_results_user ON round_results(user_id);
   `);
+
+  // Migration: add password_hash if missing (existing DBs)
+  const cols = database.prepare('PRAGMA table_info(users)').all();
+  if (!cols.some((c) => c.name === 'password_hash')) {
+    try {
+      database.exec('ALTER TABLE users ADD COLUMN password_hash TEXT');
+      // Existing users get NULL; they must create new account to use password auth
+    } catch (_) {}
+  }
 }
 
-export function createUser(username) {
+export function createUser(username, password) {
   const database = getDb();
+  if (!password || String(password).length < 4) {
+    return { error: 'Password must be at least 4 characters' };
+  }
   const id = crypto.randomUUID();
   const normalizedUsername = username.trim().toLowerCase();
-  
+
   const existing = database.prepare(
     'SELECT id FROM users WHERE username = ? OR LOWER(username) = ?'
   ).get(username.trim(), normalizedUsername);
-  
+
   if (existing) return { error: 'Username taken' };
 
   const used = database.prepare('SELECT 1 FROM used_usernames WHERE username = ?').get(normalizedUsername);
   if (used) return { error: 'Username was already used' };
 
+  const passwordHash = bcrypt.hashSync(String(password), 10);
+
   database.prepare(
-    'INSERT INTO users (id, username) VALUES (?, ?)'
-  ).run(id, username.trim());
+    'INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)'
+  ).run(id, username.trim(), passwordHash);
 
   database.prepare(
     'INSERT INTO used_usernames (username) VALUES (?)'
   ).run(normalizedUsername);
 
   return { userId: id, username: username.trim() };
+}
+
+export function signIn(username, password) {
+  const database = getDb();
+  const user = database.prepare(
+    'SELECT id, username, password_hash FROM users WHERE LOWER(username) = ?'
+  ).get(username.trim().toLowerCase());
+  if (!user) return { error: 'Invalid username or password' };
+  if (!user.password_hash) return { error: 'Please create a new account—this username was created before passwords were required.' };
+  if (!bcrypt.compareSync(String(password), user.password_hash)) {
+    return { error: 'Invalid username or password' };
+  }
+  return { userId: user.id, username: user.username };
 }
 
 export function getUser(userId) {

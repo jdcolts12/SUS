@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 
-function Profile({ userId, onEditProfile, onFriends, onBack }) {
+function Profile({ userId, onEditProfile, onFriends, onBack, onSignOut }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -55,7 +55,12 @@ function Profile({ userId, onEditProfile, onFriends, onBack }) {
         </div>
       </div>
 
-      <button className="btn btn--ghost" onClick={onBack}>Back</button>
+      <div className="profile__footer">
+        <button className="btn btn--ghost" onClick={onBack}>Back</button>
+        {onSignOut && (
+          <button className="btn btn--ghost profile__signout" onClick={onSignOut}>Sign out</button>
+        )}
+      </div>
     </div>
   );
 }
