@@ -24,7 +24,12 @@ function App() {
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
-    const s = io(SOCKET_URL, { autoConnect: false });
+    const url = SOCKET_URL.replace(/\/$/, ''); // no trailing slash
+    const s = io(url, {
+      autoConnect: false,
+      transports: ['websocket', 'polling'],
+      timeout: 10000,
+    });
     setSocket(s);
 
     s.on('connect_error', (err) => {
@@ -35,12 +40,13 @@ function App() {
       if (isProd && !hasSocketUrl) {
         msg = "Server URL not configured. In Vercel: Settings → Environment Variables → Add VITE_SOCKET_URL = your Railway URL (e.g. https://sus-xxx.up.railway.app) → Redeploy.";
       } else if (isProd) {
-        msg = "Can't reach server. Check: 1) Railway is running 2) VITE_SOCKET_URL is correct 3) You redeployed Vercel after setting it.";
+        const host = url.replace(/^https?:\/\//, '').split('/')[0] || 'server';
+        msg = `Can't reach server at ${host}. Verify: 1) Railway shows green/deployed 2) Open that URL/health in a new tab — should show {"ok":true} 3) VITE_SOCKET_URL in Vercel matches exactly 4) Redeployed after setting it.`;
       } else {
         msg = "Can't reach game server. Run 'npm run dev:server' in another terminal.";
       }
       setError(msg);
-      console.error('Socket connection failed:', err.message);
+      console.error('Socket connection failed:', err.message, 'URL:', url);
     });
 
     s.on('connect', () => {
