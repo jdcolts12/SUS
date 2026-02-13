@@ -26,14 +26,15 @@ Deploy in this order: **Railway first** (server), then **Vercel** (client).
 2. Click **"Add New..."** → **"Project"**.
 3. Find **jdcolts12/sus** and click **Import**.
 4. **Before clicking Deploy**, configure:
-   - **Root Directory:** Click **Edit** → type `client` → **Continue**.
-   - **Framework Preset:** Should show **Vite** (auto-detected).
+   - **Root Directory:** Click **Edit** → type `client` exactly → **Continue**.
    - **Environment Variables:** Click **Add**  
      - Name: `VITE_SOCKET_URL`  
      - Value: paste your **Railway URL** from Step 1  
      - (e.g. `https://sus-production-xxxx.up.railway.app`)
 5. Click **Deploy**.
 6. Wait for the build to complete.
+
+**If build fails with Root Directory = client:** Leave Root Directory empty and redeploy. The root `vercel.json` will handle the build.
 
 ---
 
