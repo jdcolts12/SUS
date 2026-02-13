@@ -13,7 +13,10 @@
     "react-dom": "^18.2.0",
     "socket.io-client": "^4.7.2"
   },
-  "devDependencies": {
+  "engines": {
+  "node": ">=18"
+},
+"devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
     "vite": "^5.0.0"
   }
