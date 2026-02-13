@@ -3,6 +3,10 @@ import { io } from 'socket.io-client';
 import Home from './screens/Home';
 import Lobby from './screens/Lobby';
 import YourWord from './screens/YourWord';
+import Profile from './screens/Profile';
+import EditProfile from './screens/EditProfile';
+import Friends from './screens/Friends';
+import SignUp from './screens/SignUp';
 
 // In dev: use same host as page (so phone at 192.168.x.x:5173 connects to 192.168.x.x:3001)
 // In prod: MUST set VITE_SOCKET_URL to your Railway server URL
@@ -10,6 +14,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? `ht
 
 function App() {
   const [screen, setScreen] = useState('home');
+  const [userId, setUserId] = useState(() => localStorage.getItem('userId'));
   const [socket, setSocket] = useState(null);
   const [gameState, setGameState] = useState({
     code: null,
@@ -20,6 +25,9 @@ function App() {
   });
   const [playerName, setPlayerName] = useState('');
   const [wordData, setWordData] = useState(null);
+  const [votePhase, setVotePhase] = useState(null);
+  const [votedCount, setVotedCount] = useState(0);
+  const [revealData, setRevealData] = useState(null);
   const [error, setError] = useState('');
   const [connecting, setConnecting] = useState(false);
 
@@ -93,7 +101,23 @@ function App() {
         ...data,
         roundVariant: data.roundVariant || 'normal',
       });
+      setVotePhase(null);
+      setRevealData(null);
       setScreen('word');
+    });
+
+    s.on('vote-started', () => {
+      setVotePhase('voting');
+      setVotedCount(0);
+    });
+
+    s.on('vote-received', ({ votedCount: n, totalPlayers }) => {
+      setVotedCount(n);
+    });
+
+    s.on('imposter-revealed', (data) => {
+      setVotePhase('revealed');
+      setRevealData(data);
     });
 
     s.on('game-started', () => {
@@ -120,7 +144,7 @@ function App() {
     setPlayerName(name);
     setConnecting(true);
     socket.connect();
-    socket.emit('create-game', { playerName: name });
+    socket.emit('create-game', { playerName: name, userId: userId || undefined });
   };
 
   const joinGame = (code, name) => {
@@ -132,7 +156,7 @@ function App() {
     setPlayerName(name);
     setConnecting(true);
     socket.connect();
-    socket.emit('join-game', { code: code.toUpperCase().trim(), playerName: name });
+    socket.emit('join-game', { code: code.toUpperCase().trim(), playerName: name, userId: userId || undefined });
   };
 
   const startGame = () => {
@@ -145,14 +169,75 @@ function App() {
 
   const backToLobby = () => {
     setWordData(null);
+    setVotePhase(null);
+    setRevealData(null);
     setScreen('lobby');
   };
+
+  const startVote = () => {
+    if (socket && gameState.gameId) {
+      socket.emit('start-vote', { gameId: gameState.gameId });
+    }
+  };
+
+  const submitVote = (votedPlayerIds, noImposter) => {
+    if (socket && gameState.gameId) {
+      socket.emit('submit-vote', {
+        gameId: gameState.gameId,
+        votedPlayerIds: noImposter ? [] : votedPlayerIds,
+        noImposter: !!noImposter,
+      });
+    }
+  };
+
+  const revealImposter = () => {
+    if (socket && gameState.gameId) {
+      socket.emit('reveal-imposter', { gameId: gameState.gameId });
+    }
+  };
+
+  if (screen === 'profile' && userId) {
+    return (
+      <Profile
+        userId={userId}
+        onEditProfile={() => setScreen('edit-profile')}
+        onFriends={() => setScreen('friends')}
+        onBack={() => setScreen('home')}
+      />
+    );
+  }
+
+  if (screen === 'edit-profile' && userId) {
+    return (
+      <EditProfile
+        userId={userId}
+        onSaved={() => setScreen('profile')}
+        onBack={() => setScreen('profile')}
+      />
+    );
+  }
+
+  if (screen === 'friends' && userId) {
+    return <Friends userId={userId} onBack={() => setScreen('profile')} />;
+  }
+
+  if (screen === 'signup') {
+    return (
+      <SignUp
+        onSignedUp={(id) => { setUserId(id); setScreen('home'); }}
+        onBack={() => setScreen('home')}
+      />
+    );
+  }
 
   if (screen === 'home') {
     return (
       <Home
+        userId={userId}
         onCreateGame={createGame}
         onJoinGame={joinGame}
+        onProfile={() => setScreen('profile')}
+        onSignUp={() => setScreen('signup')}
         error={error}
         connecting={connecting}
       />
@@ -184,6 +269,14 @@ function App() {
         onNewRound={newRound}
         isHost={gameState.isHost}
         onBackToLobby={backToLobby}
+        players={gameState.players}
+        playerId={gameState.playerId}
+        votePhase={votePhase}
+        votedCount={votedCount}
+        revealData={revealData}
+        onStartVote={startVote}
+        onSubmitVote={submitVote}
+        onRevealImposter={revealImposter}
       />
     );
   }

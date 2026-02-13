@@ -4,10 +4,13 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import { createRound } from './gameLogic.js';
+import apiRouter from './api.js';
+import * as db from './db.js';
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
+app.use('/api', apiRouter);
 
 // Health check for Railway/deployment
 app.get('/health', (req, res) => res.json({ ok: true }));
@@ -34,7 +37,7 @@ function generateRoomCode() {
   return code;
 }
 
-function createGame(hostId, hostName) {
+function createGame(hostId, hostName, hostUserId) {
   const gameId = uuidv4();
   let code = generateRoomCode();
   while (roomCodes.has(code)) code = generateRoomCode();
@@ -43,8 +46,8 @@ function createGame(hostId, hostName) {
     id: gameId,
     code,
     hostId,
-    players: [{ id: hostId, name: hostName }],
-    status: 'lobby', // lobby, playing
+    players: [{ id: hostId, name: hostName, userId: hostUserId || null }],
+    status: 'lobby',
     currentRound: null,
   };
 
@@ -54,8 +57,8 @@ function createGame(hostId, hostName) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('create-game', ({ playerName }) => {
-    const game = createGame(socket.id, playerName);
+  socket.on('create-game', ({ playerName, userId }) => {
+    const game = createGame(socket.id, playerName, userId);
     socket.join(game.code);
     socket.emit('game-created', {
       code: game.code,
@@ -65,7 +68,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('join-game', ({ code, playerName }) => {
+  socket.on('join-game', ({ code, playerName, userId }) => {
     const gameId = roomCodes.get(code?.toUpperCase());
     if (!gameId) {
       socket.emit('join-error', { message: 'Room not found. Check the code!' });
@@ -84,7 +87,7 @@ io.on('connection', (socket) => {
       socket.emit('join-error', { message: 'Room is full! Max 10 players.' });
       return;
     }
-    game.players.push({ id: socket.id, name: playerName });
+    game.players.push({ id: socket.id, name: playerName, userId: userId || null });
     socket.join(game.code);
     socket.emit('joined-game', {
       gameId: game.id,
@@ -137,6 +140,8 @@ io.on('connection', (socket) => {
     const game = games.get(gameId);
     if (!game || game.hostId !== socket.id || game.status !== 'playing') return;
 
+    game.votePhase = null;
+    game.votes = null;
     const playerIds = game.players.map((p) => p.id);
     const round = createRound(playerIds);
     game.currentRound = round;
@@ -162,6 +167,121 @@ io.on('connection', (socket) => {
     });
 
     io.to(game.code).emit('round-started');
+  });
+
+  // Host starts voting phase - all players can then vote
+  socket.on('start-vote', ({ gameId }) => {
+    const game = games.get(gameId);
+    if (!game || game.hostId !== socket.id || game.status !== 'playing' || !game.currentRound) return;
+    if (game.currentRound.roundVariant === 'no_imposter') return;
+
+    game.votePhase = 'voting';
+    game.votes = {};
+    io.to(game.code).emit('vote-started', { players: game.players });
+  });
+
+  // Any player submits their vote (multiple player IDs and/or no-imposter)
+  socket.on('submit-vote', ({ gameId, votedPlayerIds, noImposter }) => {
+    const game = games.get(gameId);
+    if (!game || game.status !== 'playing' || game.votePhase !== 'voting') return;
+    if (!game.players.some((p) => p.id === socket.id)) return;
+
+    const vote = noImposter
+      ? '__no_imposter__'
+      : (Array.isArray(votedPlayerIds) ? votedPlayerIds : []).filter((id) =>
+          game.players.some((p) => p.id === id)
+        );
+    game.votes[socket.id] = vote;
+
+    const votedCount = Object.keys(game.votes).length;
+    const totalPlayers = game.players.length;
+    io.to(game.code).emit('vote-received', { votedCount, totalPlayers });
+  });
+
+  // Host reveals imposter after everyone has voted
+  socket.on('reveal-imposter', ({ gameId }) => {
+    const game = games.get(gameId);
+    if (!game || game.hostId !== socket.id || game.status !== 'playing' || game.votePhase !== 'voting') return;
+
+    const round = game.currentRound;
+    const totalPlayers = game.players.length;
+    const votedCount = Object.keys(game.votes || {}).length;
+    if (votedCount < totalPlayers) return;
+
+    // Tally votes: each voted player ID gets +1 per vote; __no_imposter__ doesn't add to anyone
+    const tally = {};
+    game.players.forEach((p) => { tally[p.id] = 0; });
+    Object.values(game.votes || {}).forEach((vote) => {
+      if (vote === '__no_imposter__') return;
+      if (Array.isArray(vote)) {
+        vote.forEach((id) => { if (tally[id] !== undefined) tally[id]++; });
+      }
+    });
+
+    // Highest vote count = voted out (first in case of tie)
+    let votedPlayerId = null;
+    let maxVotes = 0;
+    for (const [id, count] of Object.entries(tally)) {
+      if (count > maxVotes) {
+        maxVotes = count;
+        votedPlayerId = id;
+      }
+    }
+    const votedWasImposter = votedPlayerId ? round.imposterIds.includes(votedPlayerId) : false;
+
+    if (round.roundVariant !== 'no_imposter') {
+      game.players.forEach((p) => {
+        if (p.userId) {
+          const wasImposter = round.imposterIds.includes(p.id);
+          const won = wasImposter ? !votedWasImposter : votedWasImposter;
+          db.recordRoundResult(p.userId, wasImposter, won);
+        }
+      });
+    }
+
+    game.votePhase = 'revealed';
+
+    const imposterNames = round.imposterIds
+      .map((id) => game.players.find((p) => p.id === id)?.name)
+      .filter(Boolean);
+    const votedPlayerName = votedPlayerId
+      ? game.players.find((p) => p.id === votedPlayerId)?.name
+      : null;
+
+    io.to(game.code).emit('imposter-revealed', {
+      imposterIds: round.imposterIds,
+      imposterNames,
+      votedPlayerId,
+      votedPlayerName,
+      wasImposter: votedWasImposter,
+      teamWon: votedWasImposter,
+    });
+  });
+
+  socket.on('record-round-result', ({ gameId, votedPlayerId }) => {
+    // Legacy: direct record without voting (kept for compatibility, can remove if unused)
+    const game = games.get(gameId);
+    if (!game || game.hostId !== socket.id || game.status !== 'playing' || !game.currentRound) return;
+
+    const round = game.currentRound;
+    const votedWasImposter = votedPlayerId ? round.imposterIds.includes(votedPlayerId) : false;
+
+    if (round.roundVariant !== 'no_imposter') {
+      game.players.forEach((p) => {
+        if (p.userId) {
+          const wasImposter = round.imposterIds.includes(p.id);
+          const won = wasImposter ? !votedWasImposter : votedWasImposter;
+          db.recordRoundResult(p.userId, wasImposter, won);
+        }
+      });
+    }
+
+    io.to(game.code).emit('round-result-recorded', {
+      votedPlayerId,
+      votedPlayerName: game.players.find((p) => p.id === votedPlayerId)?.name,
+      wasImposter: votedWasImposter,
+      teamWon: votedWasImposter,
+    });
   });
 
   socket.on('disconnect', () => {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import ConnectionHelp from './ConnectionHelp';
 
-function Home({ onCreateGame, onJoinGame, error, connecting = false }) {
+function Home({ userId, onCreateGame, onJoinGame, onProfile, onSignUp, error, connecting = false }) {
   const [mode, setMode] = useState(null);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -18,6 +18,18 @@ function Home({ onCreateGame, onJoinGame, error, connecting = false }) {
 
   return (
     <div className="home">
+      <div className="home__header">
+        {userId ? (
+          <button className="home__profile-btn btn btn--ghost" onClick={onProfile}>
+            Profile
+          </button>
+        ) : (
+          <button className="home__profile-btn btn btn--ghost" onClick={onSignUp}>
+            Create account
+          </button>
+        )}
+      </div>
+
       <div className="home__hero">
         <h1 className="home__title">SUS</h1>
         <p className="home__subtitle">One of you isn't who they seem</p>
