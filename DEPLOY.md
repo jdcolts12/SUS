@@ -1,60 +1,43 @@
-# Deploy SUS to Production
+# Deploy SUS — Fresh Start
 
-The app has two parts:
-- **Client** (React) → Vercel (static hosting)
-- **Server** (Express + Socket.io) → Railway (WebSockets need a persistent server)
-
-Deploy the **server first**, then the **client** (so you have the server URL for the env var).
+Two parts: **Server** (Railway) and **Client** (Vercel). Do the server first so you have the URL for the client.
 
 ---
 
-## 1. Push to GitHub
+## Step 1: Server on Railway
 
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/YOUR_USERNAME/imposter.git
-git push -u origin main
-```
+1. Open **https://railway.app** and sign in with GitHub.
+2. Click **"New Project"** → **"Deploy from GitHub repo"**.
+3. Pick your repo (e.g. `sus`). Railway will deploy the server automatically.
+4. Click the deployed service → **Settings** → **Networking** → **"Generate Domain"**.
+5. Copy the URL (e.g. `https://sus-production-abcd.up.railway.app`). Keep it for Step 3.
 
 ---
 
-## 2. Deploy Server to Railway
+## Step 2: Client on Vercel
 
-1. Go to [railway.app](https://railway.app) and sign in (GitHub).
-2. **New Project** → **Deploy from GitHub repo** → select your repo.
-3. Railway will detect Node.js and deploy. It uses the root `package.json` and `npm start`.
-4. After deploy: **Settings** → **Networking** → **Generate Domain**.
-5. Copy the URL (e.g. `https://imposter-production.up.railway.app`).  
-   Use the **root URL** (no trailing path). You’ll need it for the client.
+1. Open **https://vercel.com** and sign in with GitHub.
+2. Click **"Add New"** → **"Project"** → select the same repo.
+3. **Important:** Click **"Edit"** next to Root Directory.
+4. Type `client` and confirm.
+5. Under **Environment Variables**, add:
+   - **Name:** `VITE_SOCKET_URL`
+   - **Value:** paste your Railway URL from Step 1 (e.g. `https://sus-production-abcd.up.railway.app`)
+6. Click **Deploy**.
 
----
-
-## 3. Deploy Client to Vercel
-
-1. Go to [vercel.com](https://vercel.com) and sign in (GitHub).
-2. **Add New** → **Project** → import your repo.
-3. **Configure:**
-   - **Root Directory:** `client`
-   - **Framework Preset:** Vite (auto-detected)
-   - **Build Command:** `npm run build`
-   - **Output Directory:** `dist`
-4. **Environment Variables:**
-   - Add `VITE_SOCKET_URL` = your Railway URL (e.g. `https://imposter-production.up.railway.app`)
-   - No `https://` vs `http://` issues—use whatever Railway gives you.
-5. **Deploy.**
+Vercel will:
+- Build from the `client` folder
+- Detect Vite
+- Run `npm run build`
 
 ---
 
-## 4. Test
+## Step 3: Test
 
-Visit your Vercel URL, create a game, and join from another device. Everything should connect through the Railway server.
+Open your Vercel URL (e.g. `https://sus-xxx.vercel.app`). Create a game and join from another device.
 
 ---
 
-## Troubleshooting
+## If Vercel Build Fails
 
-- **Client can’t connect:** Ensure `VITE_SOCKET_URL` is set in Vercel and redeployed.
-- **CORS errors:** The server uses `origin: '*'` by default. If you lock down CORS, add your Vercel domain.
-- **Railway sleep:** On the free tier, the server may sleep; the first request might be slow.
+Make sure **Root Directory** is set to `client`. Without it, the build runs from the repo root and fails.
