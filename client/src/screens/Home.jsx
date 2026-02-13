@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-function Home({ onCreateGame, onJoinGame, error }) {
+function Home({ onCreateGame, onJoinGame, error, connecting = false }) {
   const [mode, setMode] = useState(null);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -48,8 +48,8 @@ function Home({ onCreateGame, onJoinGame, error }) {
             autoFocus
             required
           />
-          <button type="submit" className="btn btn--primary">
-            Create & Get Code
+          <button type="submit" className="btn btn--primary" disabled={connecting}>
+            {connecting ? 'Connecting...' : 'Create & Get Code'}
           </button>
           <button
             type="button"
@@ -78,8 +78,8 @@ function Home({ onCreateGame, onJoinGame, error }) {
             maxLength={20}
             required
           />
-          <button type="submit" className="btn btn--primary">
-            Join
+          <button type="submit" className="btn btn--primary" disabled={connecting}>
+            {connecting ? 'Connecting...' : 'Join'}
           </button>
           <button
             type="button"

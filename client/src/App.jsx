@@ -20,10 +20,27 @@ function App() {
   const [playerName, setPlayerName] = useState('');
   const [wordData, setWordData] = useState(null);
   const [error, setError] = useState('');
+  const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
     const s = io(SOCKET_URL, { autoConnect: false });
     setSocket(s);
+
+    s.on('connect_error', (err) => {
+      setConnecting(false);
+      const isProd = !import.meta.env.DEV;
+      setError(
+        isProd
+          ? "Can't reach game server. Check that the server is deployed and VITE_SOCKET_URL is set."
+          : "Can't reach game server. Run the server with 'npm run dev:server'."
+      );
+      console.error('Socket connection failed:', err.message);
+    });
+
+    s.on('connect', () => {
+      setConnecting(false);
+      setError('');
+    });
 
     s.on('game-created', ({ code, gameId, playerId, players }) => {
       setGameState({
@@ -83,15 +100,25 @@ function App() {
   }, []);
 
   const createGame = (name) => {
+    if (!socket) {
+      setError('Loading... try again in a moment.');
+      return;
+    }
     setError('');
     setPlayerName(name);
+    setConnecting(true);
     socket.connect();
     socket.emit('create-game', { playerName: name });
   };
 
   const joinGame = (code, name) => {
+    if (!socket) {
+      setError('Loading... try again in a moment.');
+      return;
+    }
     setError('');
     setPlayerName(name);
+    setConnecting(true);
     socket.connect();
     socket.emit('join-game', { code: code.toUpperCase().trim(), playerName: name });
   };
@@ -115,6 +142,7 @@ function App() {
         onCreateGame={createGame}
         onJoinGame={joinGame}
         error={error}
+        connecting={connecting}
       />
     );
   }
