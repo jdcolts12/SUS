@@ -19,20 +19,17 @@ function Home({ userId, onCreateGame, onJoinGame, onProfile, onSignUp, onSignIn,
   return (
     <div className="home">
       <div className="home__header">
-        {userId ? (
+        {userId && (
           <button className="home__profile-btn btn btn--ghost" onClick={onProfile}>
             Profile
           </button>
-        ) : (
-          <>
-            <button className="home__profile-btn btn btn--ghost" onClick={onSignIn}>
-              Sign in
-            </button>
-            <button className="home__profile-btn btn btn--ghost" onClick={onSignUp}>
-              Create account
-            </button>
-          </>
         )}
+        <button className="home__profile-btn btn btn--ghost" onClick={onSignIn}>
+          Sign in
+        </button>
+        <button className="home__profile-btn btn btn--ghost" onClick={onSignUp}>
+          Create account
+        </button>
       </div>
 
       <div className="home__hero">

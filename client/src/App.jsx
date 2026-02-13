@@ -21,6 +21,7 @@ function App() {
     const version = localStorage.getItem('authVersion');
     if (stored && version !== AUTH_VERSION) {
       localStorage.removeItem('userId');
+      localStorage.removeItem('authVersion');
       return null;
     }
     return stored;
