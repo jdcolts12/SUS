@@ -1,59 +1,36 @@
-# SUS — Run Locally & Deploy
+# Get Your Updates Live
 
-Your code: **https://github.com/jdcolts12/sus**
+Your code has Sign In and Create Account, but it’s not on the live site until you deploy.
 
----
+## Option A: Push to GitHub (triggers Vercel auto-deploy)
 
-## Run Locally (test first)
+In Terminal:
 
 ```bash
 cd /Users/joeydias/Desktop/Imposter
-npm run dev
+git push origin main
 ```
 
-Open **http://localhost:5173**. Create a game, test it. Stop with `Ctrl+C`.
+If you see an auth error, either:
+
+1. **GitHub Desktop**: Open the repo and push from the GUI.
+2. **Personal Access Token**: `git remote set-url origin https://YOUR_USERNAME:YOUR_TOKEN@github.com/jdcolts12/sus.git` then `git push origin main`.
 
 ---
 
-## Deploy to Production
+## Option B: Deploy directly with Vercel CLI
 
-**Server** (choose one) → **Vercel** (client)
+```bash
+cd /Users/joeydias/Desktop/Imposter
+npx vercel --prod
+```
 
----
-
-### Option A: Server on Render (recommended)
-
-1. Go to **https://render.com** → sign in with GitHub.
-2. **New** → **Web Service**.
-3. Connect repo **jdcolts12/sus**.
-4. Render will auto-detect from `render.yaml`:
-   - **Build Command:** `npm install`
-   - **Start Command:** `node server/index.js`
-5. Click **Create Web Service**.
-6. Wait for deploy. Your URL will be like `https://sus-server.onrender.com`.
-7. **Copy that URL** — use it for `VITE_SOCKET_URL` in Vercel.
+Log in when prompted. This deploys from your local files and skips GitHub.
 
 ---
 
-### Option B: Server on Railway
+## After deploying
 
-1. Go to **https://railway.app** → sign in with GitHub.
-2. **New Project** → **Deploy from GitHub repo** → **jdcolts12/sus**.
-3. After deploy: **Settings** → **Networking** → **Generate Domain**.
-4. **Custom Start Command:** `node server/index.js` (in Settings → Deploy).
-5. Copy the URL.
-
----
-
-### Client on Vercel
-
-1. Go to **https://vercel.com** → **Add New** → **Project** → **jdcolts12/sus**.
-2. **Root Directory:** `client`
-3. **Environment Variables:** Add `VITE_SOCKET_URL` = your **server URL** (Render or Railway).
-4. **Deploy** → then **Redeploy** after adding the env var.
-
----
-
-### Play
-
-Open your Vercel URL. Create a game and share the code.
+- Hard refresh: **Cmd+Shift+R** (Mac) or **Ctrl+Shift+R** (Windows)
+- Or open the site in an **Incognito/Private** window
+- Or clear site data for your app’s domain
