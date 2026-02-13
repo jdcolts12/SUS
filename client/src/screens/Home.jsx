@@ -41,8 +41,14 @@ function Home({ userId, onCreateGame, onJoinGame, onProfile, onSignUp, onSignIn,
       </div>
 
       {!userId ? (
-        <div className="home__auth-required">
-          <p className="home__auth-msg">Sign in or create an account to play.</p>
+        <div className="home__actions">
+          <p className="home__auth-msg">Sign in or create an account to play</p>
+          <button className="btn btn--primary" onClick={onSignIn}>
+            Sign In
+          </button>
+          <button className="btn btn--secondary" onClick={onSignUp}>
+            Create Account
+          </button>
         </div>
       ) : !mode ? (
         <div className="home__actions">

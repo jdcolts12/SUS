@@ -13,9 +13,18 @@ import SignIn from './screens/SignIn';
 // In prod: MUST set VITE_SOCKET_URL to your Railway server URL
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3001` : window.location.origin);
 
+const AUTH_VERSION = 'v2-password';
 function App() {
   const [screen, setScreen] = useState('home');
-  const [userId, setUserId] = useState(() => localStorage.getItem('userId'));
+  const [userId, setUserId] = useState(() => {
+    const stored = localStorage.getItem('userId');
+    const version = localStorage.getItem('authVersion');
+    if (stored && version !== AUTH_VERSION) {
+      localStorage.removeItem('userId');
+      return null;
+    }
+    return stored;
+  });
   const [socket, setSocket] = useState(null);
   const [gameState, setGameState] = useState({
     code: null,
@@ -204,7 +213,7 @@ function App() {
         onEditProfile={() => setScreen('edit-profile')}
         onFriends={() => setScreen('friends')}
         onBack={() => setScreen('home')}
-        onSignOut={() => { localStorage.removeItem('userId'); setUserId(null); setScreen('home'); }}
+        onSignOut={() => { localStorage.removeItem('userId'); localStorage.removeItem('authVersion'); setUserId(null); setScreen('home'); }}
       />
     );
   }
@@ -226,7 +235,7 @@ function App() {
   if (screen === 'signup') {
     return (
       <SignUp
-        onSignedUp={(id) => { setUserId(id); setScreen('home'); }}
+        onSignedUp={(id) => { localStorage.setItem('userId', id); localStorage.setItem('authVersion', AUTH_VERSION); setUserId(id); setScreen('home'); }}
         onBack={() => setScreen('home')}
         onSignIn={() => setScreen('signin')}
       />
@@ -236,7 +245,7 @@ function App() {
   if (screen === 'signin') {
     return (
       <SignIn
-        onSignedIn={(id) => { setUserId(id); setScreen('home'); }}
+        onSignedIn={(id) => { localStorage.setItem('userId', id); localStorage.setItem('authVersion', AUTH_VERSION); setUserId(id); setScreen('home'); }}
         onBack={() => setScreen('home')}
         onSignUp={() => setScreen('signup')}
       />

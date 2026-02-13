@@ -744,14 +744,11 @@ button {
   font-size: 0.9rem;
   padding: 0.5rem 1rem;
 }
-.home__auth-required {
-  padding: 2rem 1rem;
-  text-align: center;
-}
 .home__auth-msg {
   color: var(--text-muted);
   font-size: 1rem;
-  margin: 0;
+  margin: 0 0 1rem;
+  text-align: center;
 }
 
 /* Sign In */
