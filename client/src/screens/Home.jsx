@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ConnectionHelp from './ConnectionHelp';
 
 function Home({ onCreateGame, onJoinGame, error, connecting = false }) {
   const [mode, setMode] = useState(null);
@@ -91,7 +92,12 @@ function Home({ onCreateGame, onJoinGame, error, connecting = false }) {
         </form>
       )}
 
-      {error && <p className="home__error">{error}</p>}
+      {error && (
+        <>
+          <p className="home__error">{error}</p>
+          <ConnectionHelp />
+        </>
+      )}
 
       <p className="home__hint">
         Share the room code with friends. Everyone gets a word on their phone—except who's SUS, who only knows the category.

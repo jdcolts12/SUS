@@ -150,6 +150,57 @@ button {
   font-size: 0.95rem;
 }
 
+/* Connection help */
+.connection-help {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  margin-top: 1rem;
+  text-align: left;
+  max-width: 320px;
+}
+.connection-help h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+.connection-help ol {
+  margin: 0 0 1rem;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.connection-help li {
+  margin-bottom: 0.3rem;
+}
+.connection-help code {
+  background: var(--surface-light);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-size: 0.8em;
+}
+.connection-help__test {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.connection-help__test input {
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  border: 2px solid var(--surface-light);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.connection-help__test button {
+  padding: 0.6rem;
+  background: var(--surface-light);
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+.connection-help__ok { color: var(--success); margin: 0.5rem 0 0; font-size: 0.9rem; }
+.connection-help__fail { color: var(--accent); margin: 0.5rem 0 0; font-size: 0.9rem; }
+
 .home__hint {
   font-size: 0.85rem;
   color: var(--text-muted);

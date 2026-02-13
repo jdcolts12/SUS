@@ -5,6 +5,7 @@ import Lobby from './screens/Lobby';
 import YourWord from './screens/YourWord';
 
 // In dev: use same host as page (so phone at 192.168.x.x:5173 connects to 192.168.x.x:3001)
+// In prod: MUST set VITE_SOCKET_URL to your Railway server URL
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3001` : window.location.origin);
 
 function App() {
@@ -29,11 +30,16 @@ function App() {
     s.on('connect_error', (err) => {
       setConnecting(false);
       const isProd = !import.meta.env.DEV;
-      setError(
-        isProd
-          ? "Can't reach game server. Check that the server is deployed and VITE_SOCKET_URL is set."
-          : "Can't reach game server. Run the server with 'npm run dev:server'."
-      );
+      const hasSocketUrl = !!import.meta.env.VITE_SOCKET_URL;
+      let msg;
+      if (isProd && !hasSocketUrl) {
+        msg = "Server URL not configured. In Vercel: Settings → Environment Variables → Add VITE_SOCKET_URL = your Railway URL (e.g. https://sus-xxx.up.railway.app) → Redeploy.";
+      } else if (isProd) {
+        msg = "Can't reach server. Check: 1) Railway is running 2) VITE_SOCKET_URL is correct 3) You redeployed Vercel after setting it.";
+      } else {
+        msg = "Can't reach game server. Run 'npm run dev:server' in another terminal.";
+      }
+      setError(msg);
       console.error('Socket connection failed:', err.message);
     });
 

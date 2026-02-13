@@ -1,53 +1,58 @@
-# Deploy SUS — Start to Finish
+# SUS — Run Locally & Deploy
 
-Your code is on GitHub: **https://github.com/jdcolts12/sus**
-
-Deploy in this order: **Railway first** (server), then **Vercel** (client).
+Your code: **https://github.com/jdcolts12/sus**
 
 ---
 
-## Step 1: Deploy Server (Railway)
+## Run Locally (test first)
 
-1. Go to **https://railway.app** and sign in with **GitHub**.
-2. Click **"New Project"**.
-3. Choose **"Deploy from GitHub repo"**.
-4. Select **jdcolts12/sus** (connect GitHub if asked).
-5. Railway will deploy. Wait for it to finish (green checkmark).
-6. Click on the deployed service.
-7. Go to **Settings** → **Networking** → **"Generate Domain"**.
-8. Copy the URL (e.g. `https://sus-production-xxxx.up.railway.app`).
-9. **Save this URL** — you need it for Step 2.
+Open a terminal in the project folder and run:
+
+```bash
+cd /Users/joeydias/Desktop/Imposter
+npm run dev
+```
+
+This starts:
+- **Server** on http://localhost:3001
+- **Client** on http://localhost:5173
+
+**If port 3001 or 5173 is in use:**
+```bash
+# Kill whatever is using those ports, then:
+npm run dev
+```
+
+Open **http://localhost:5173** in your browser. Create a game, join from your phone (same WiFi, use your computer's IP like `http://192.168.1.x:5173`). If it works locally, you're ready to deploy.
+
+Stop with `Ctrl+C`.
 
 ---
 
-## Step 2: Deploy Client (Vercel)
+## Deploy to Production
 
-1. Go to **https://vercel.com** and sign in with **GitHub**.
-2. Click **"Add New..."** → **"Project"**.
-3. Find **jdcolts12/sus** and click **Import**.
-4. **Before clicking Deploy**, configure:
-   - **Root Directory:** Click **Edit** → type `client` exactly → **Continue**.
-   - **Environment Variables:** Click **Add**  
-     - Name: `VITE_SOCKET_URL`  
-     - Value: paste your **Railway URL** from Step 1  
-     - (e.g. `https://sus-production-xxxx.up.railway.app`)
+Deploy in order: **Railway** (server) → **Vercel** (client).
+
+### Step 1: Server on Railway
+
+1. Go to **https://railway.app** → sign in with GitHub.
+2. **New Project** → **Deploy from GitHub repo** → select **jdcolts12/sus**.
+3. Wait for deploy to finish.
+4. Click the service → **Settings** → **Networking** → **Generate Domain**.
+5. Copy the URL (e.g. `https://sus-production-xxxx.up.railway.app`). Save it.
+
+### Step 2: Client on Vercel
+
+1. Go to **https://vercel.com** → sign in with GitHub.
+2. **Add New** → **Project** → import **jdcolts12/sus**.
+3. **Root Directory:** Edit → type `client` → Continue.
+4. **Environment Variables:** Add  
+   - Name: `VITE_SOCKET_URL`  
+   - Value: your Railway URL from Step 1
 5. Click **Deploy**.
-6. Wait for the build to complete.
 
-**If build fails with Root Directory = client:** Leave Root Directory empty and redeploy. The root `vercel.json` will handle the build.
+**If build fails:** Clear Root Directory and redeploy (root `vercel.json` will build).
 
----
+### Step 3: Play
 
-## Step 3: Play
-
-Open your Vercel URL (e.g. `https://sus-xxxx.vercel.app`). Create a game, share the code, and play on your phones.
-
----
-
-## Summary
-
-| Step | Where        | What                                  |
-|------|--------------|----------------------------------------|
-| 1    | Railway      | Deploy server, get URL                 |
-| 2    | Vercel       | Deploy client, set Root = `client`, add `VITE_SOCKET_URL` |
-| 3    | Your browser | Play the game                          |
+Open your Vercel URL. Create a game and share the code with friends.
