@@ -478,6 +478,14 @@ button {
 }
 
 /* Vote phase */
+.word__vote-on-imposter {
+  margin: 1rem 0;
+}
+.word__vote-timer {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
 .word__vote {
   width: 100%;
   max-width: 320px;

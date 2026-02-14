@@ -34,11 +34,29 @@ function YourWord({
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [showRevealPopup, setShowRevealPopup] = useState(true);
   const [isRevealing, setIsRevealing] = useState(false);
+  const [voteWindowMinsLeft, setVoteWindowMinsLeft] = useState(30);
   const revealLastFired = useRef(0);
   const revealTimeoutRef = useRef(null);
   const revealRetryRef = useRef(null);
   const revealDoneRef = useRef(false);
   const retryIdsRef = useRef([]);
+  const roundStartTimeRef = useRef(Date.now());
+
+  useEffect(() => {
+    roundStartTimeRef.current = Date.now();
+  }, [word]);
+
+  useEffect(() => {
+    if (!isHost || votePhase === 'voting' || revealData) return;
+    const tick = () => {
+      const elapsed = (Date.now() - roundStartTimeRef.current) / 1000 / 60;
+      const left = Math.max(0, Math.ceil(30 - elapsed));
+      setVoteWindowMinsLeft(left);
+    };
+    tick();
+    const id = setInterval(tick, 60000);
+    return () => clearInterval(id);
+  }, [isHost, votePhase, revealData]);
 
   useEffect(() => {
     setSelectedIds([]);
@@ -306,12 +324,22 @@ function YourWord({
         </>
       )}
 
-      {/* Host: Start voting (before vote phase) */}
-      {isHost && !votePhase && (
-        <button className="btn btn--primary" onClick={onStartVote}>
-          Vote on Imposter
-        </button>
-      )}
+      {/* Host: Start voting (before vote phase) - guaranteed visible for 30 min */}
+      {isHost && (() => {
+        const msSinceStart = Date.now() - roundStartTimeRef.current;
+        const within30Min = msSinceStart < 30 * 60 * 1000;
+        const show = !revealData && (!votePhase || (within30Min && votePhase !== 'voting'));
+        return show ? (
+          <div className="word__vote-on-imposter">
+            <button className="btn btn--primary" onClick={onStartVote}>
+              Vote on Imposter
+            </button>
+            {voteWindowMinsLeft > 0 && (
+              <p className="word__vote-timer">Available for {voteWindowMinsLeft} min</p>
+            )}
+          </div>
+        ) : null;
+      })()}
 
       {/* All players: Voting UI */}
       {votePhase === 'voting' && (
