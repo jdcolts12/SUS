@@ -11,7 +11,19 @@ function Profile({ userId, onEditProfile, onFriends, onBack, onSignOut }) {
   }, [userId]);
 
   if (loading) return <div className="profile"><p>Loading...</p></div>;
-  if (error) return <div className="profile"><p className="profile__error">{error}</p><button className="btn" onClick={onBack}>Back</button></div>;
+  if (error) {
+    const isNotFound = /not found|404/i.test(error);
+    return (
+      <div className="profile">
+        <p className="profile__error">
+          {isNotFound ? 'Your session expired (server may have restarted). Please sign in again.' : error}
+        </p>
+        <button className="btn" onClick={isNotFound && onSignOut ? onSignOut : onBack}>
+          {isNotFound ? 'Sign in again' : 'Back'}
+        </button>
+      </div>
+    );
+  }
   if (!user) return null;
 
   const stats = user.stats || { teamWins: 0, teamLosses: 0, imposterWins: 0, imposterLosses: 0 };

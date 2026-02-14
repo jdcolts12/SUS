@@ -245,7 +245,7 @@ function App() {
   if (screen === 'signup') {
     return (
       <SignUp
-        onSignedUp={(id, name) => { localStorage.setItem('userId', id); localStorage.setItem('username', name || ''); setUserId(id); setUsername(name || ''); setScreen('home'); }}
+        onSignedUp={(id, name) => { localStorage.setItem('userId', id); localStorage.setItem('username', name || ''); setUserId(id); setUsername(name || ''); setScreen('profile'); }}
         onBack={() => setScreen('home')}
         onSignIn={() => setScreen('signin')}
       />
@@ -255,7 +255,7 @@ function App() {
   if (screen === 'signin') {
     return (
       <SignIn
-        onSignedIn={(id, name) => { localStorage.setItem('userId', id); localStorage.setItem('username', name || ''); setUserId(id); setUsername(name || ''); setScreen('home'); }}
+        onSignedIn={(id, name) => { localStorage.setItem('userId', id); localStorage.setItem('username', name || ''); setUserId(id); setUsername(name || ''); setScreen('profile'); }}
         onBack={() => setScreen('home')}
         onSignUp={() => setScreen('signup')}
       />

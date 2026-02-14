@@ -49,7 +49,7 @@ function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onSignUp,
       {!userId ? (
         <div className="home__auth-gate">
           <h3 className="home__auth-title">Sign in to play</h3>
-          <p className="home__auth-msg">Create an account or sign in with your username and password.</p>
+          <p className="home__auth-msg">Choose an option below:</p>
           <div className="home__actions home__auth-buttons">
             <button className="btn btn--primary btn--large" onClick={onSignUp}>
               Create Account
