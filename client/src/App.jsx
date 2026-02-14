@@ -47,6 +47,7 @@ function App() {
   const [error, setError] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [disconnected, setDisconnected] = useState(false);
+  const [isStartingVote, setIsStartingVote] = useState(false);
   const gameStateRef = useRef(gameState);
   const playerNameRef = useRef(playerName);
   const isRefreshRef = useRef(false);
@@ -373,21 +374,58 @@ function App() {
   };
 
   const startVote = () => {
-    if (!socket) { setError('Loading... try again in a moment.'); return; }
-    if (!socket?.connected) retryConnection();
-    const { gameId, code, playerName } = getGameCreds();
-    if (socket?.connected && gameId) socket.emit('start-vote', { gameId });
-    if (gameId && code && playerName) {
-      api.startVote(gameId, code, playerName)
-        .then(() => {
-          setError('');
-          setVotePhase('voting');
-          setVotedCount(0);
-        })
-        .catch((err) => setError(err?.message || 'Start vote failed. Tap again.'));
-    } else {
+    const { gameId, code, playerName: pn } = getGameCreds();
+    if (!gameId || !code || !pn) {
       setError('Missing game info. Go back to lobby and rejoin.');
+      return;
     }
+    if (socket && !socket.connected) retryConnection?.();
+    if (socket?.connected && gameId) socket.emit('start-vote', { gameId });
+    let done = false;
+    const handleSuccess = () => {
+      if (done) return;
+      done = true;
+      setIsStartingVote(false);
+      setError('');
+      setVotePhase('voting');
+      setVotedCount(0);
+    };
+    const handleFail = (err) => {
+      if (done) return;
+      setIsStartingVote(false);
+      setError(err?.message || 'Start vote failed. Tap again.');
+    };
+    setIsStartingVote(true);
+    const url = (import.meta.env.VITE_SOCKET_URL || '').replace(/\/$/, '');
+    const wakeThenTry = () => {
+      if (done) return;
+      const doStartVote = () => {
+        if (done) return;
+        api.startVote(gameId, code, pn).then(handleSuccess).catch((e) => {
+          if (done) return;
+          handleFail(e);
+        });
+      };
+      if (url && !import.meta.env.DEV) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 60000);
+        fetch(`${url}/health`, { mode: 'cors', signal: ctrl.signal })
+          .catch(() => {})
+          .finally(() => {
+            clearTimeout(t);
+            doStartVote();
+          });
+      } else {
+        doStartVote();
+      }
+    };
+    wakeThenTry();
+    [8000, 20000, 40000].forEach((ms) => {
+      setTimeout(() => {
+        if (done) return;
+        wakeThenTry();
+      }, ms);
+    });
   };
 
   const submitVote = (votedPlayerIds, noImposter, players = []) => {
@@ -531,6 +569,7 @@ function App() {
         votedCount={votedCount}
         revealData={revealData}
         onStartVote={startVote}
+        isStartingVote={isStartingVote}
         onSubmitVote={submitVote}
         socket={socket}
         gameId={gameState.gameId}

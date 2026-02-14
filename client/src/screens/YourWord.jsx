@@ -17,6 +17,7 @@ function YourWord({
   votedCount,
   revealData,
   onStartVote,
+  isStartingVote,
   onSubmitVote,
   socket,
   gameId,
@@ -331,8 +332,12 @@ function YourWord({
         const show = !revealData && (!votePhase || (within30Min && votePhase !== 'voting'));
         return show ? (
           <div className="word__vote-on-imposter">
-            <button className="btn btn--primary" onClick={onStartVote}>
-              Vote on Imposter
+            <button
+              className="btn btn--primary"
+              onClick={onStartVote}
+              disabled={!!isStartingVote}
+            >
+              {isStartingVote ? 'Starting vote…' : 'Vote on Imposter'}
             </button>
             {voteWindowMinsLeft > 0 && (
               <p className="word__vote-timer">Available for {voteWindowMinsLeft} min</p>

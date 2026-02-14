@@ -110,7 +110,7 @@ export const api = {
   },
   startVote: async (gameId, code, playerName) => {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 15000);
+    const t = setTimeout(() => ctrl.abort(), 90000);
     try {
       const data = await fetchApi('/start-vote', {
         method: 'POST',
