@@ -22,10 +22,9 @@ const roomCodes = new Map();
 const disconnectTimeouts = new Map();
 
 const io = new Server(httpServer, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-  },
+  cors: { origin: '*', methods: ['GET', 'POST'] },
+  pingTimeout: 60000,
+  pingInterval: 25000,
 });
 
 // HTTP reveal fallback (reliable on mobile when Socket.IO drops)
@@ -179,6 +178,10 @@ io.on('connection', (socket) => {
       disconnectTimeouts.delete(oldId);
     }
     socket.join(game.code);
+    if (game.votePhase === 'voting' && game.votes) {
+      const vc = Object.keys(game.votes).length;
+      socket.emit('vote-received', { votedCount: vc, totalPlayers: game.players.length });
+    }
     if (typeof ack === 'function') ack({ ok: true });
   });
 
@@ -207,6 +210,7 @@ io.on('connection', (socket) => {
       gameId: game.id,
       playerId: socket.id,
       players: game.players,
+      code: game.code,
     });
     io.to(game.code).emit('player-joined', { players: game.players });
   });
@@ -438,7 +442,7 @@ io.on('connection', (socket) => {
     for (const [gameId, game] of games) {
       const idx = game.players.findIndex((p) => p.id === socket.id);
       if (idx >= 0) {
-        // Grace period: allow rejoin within 60s before removing (fixes vote count / reveal)
+        // Grace period: allow rejoin within 2 min before removing
         const tid = setTimeout(() => {
           disconnectTimeouts.delete(socket.id);
           const i = game.players.findIndex((p) => p.id === socket.id);
@@ -452,7 +456,7 @@ io.on('connection', (socket) => {
             game.hostId = game.players[0].id;
             io.to(game.code).emit('new-host', { hostId: game.hostId });
           }
-        }, 60000);
+        }, 120000);
         disconnectTimeouts.set(socket.id, tid);
         break;
       }

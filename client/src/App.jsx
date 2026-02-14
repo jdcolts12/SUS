@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import Home from './screens/Home';
 import Lobby from './screens/Lobby';
@@ -46,8 +46,10 @@ function App() {
   const [revealData, setRevealData] = useState(null);
   const [error, setError] = useState('');
   const [connecting, setConnecting] = useState(false);
+  const [disconnected, setDisconnected] = useState(false);
   const gameStateRef = useRef(gameState);
   const playerNameRef = useRef(playerName);
+  const isRefreshRef = useRef(false);
   useEffect(() => {
     gameStateRef.current = gameState;
     playerNameRef.current = playerName;
@@ -59,7 +61,11 @@ function App() {
     const s = io(url, {
       autoConnect: false,
       transports: isProd ? ['polling', 'websocket'] : ['websocket', 'polling'],
-      timeout: isProd ? 90000 : 10000,
+      timeout: 120000,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
     });
     setSocket(s);
 
@@ -80,11 +86,26 @@ function App() {
       console.error('Socket connection failed:', err.message, 'URL:', url);
     });
 
+    s.on('disconnect', () => { if (!isRefreshRef.current) setDisconnected(true); isRefreshRef.current = false; });
     s.on('connect', () => {
       setConnecting(false);
+      setDisconnected(false);
       setError('');
-      const gs = gameStateRef.current;
-      const pn = playerNameRef.current;
+      let gs = gameStateRef.current;
+      let pn = playerNameRef.current;
+      if ((!gs?.gameId || !gs?.code || !pn)) {
+        try {
+          const raw = sessionStorage.getItem('sus_game');
+          const saved = raw ? JSON.parse(raw) : {};
+          const savedName = sessionStorage.getItem('sus_playerName');
+          if (saved?.gameId && saved?.code && savedName) {
+            gs = { ...gs, gameId: saved.gameId, code: saved.code };
+            pn = savedName;
+            setGameState((prev) => ({ ...prev, gameId: saved.gameId, code: saved.code }));
+            setPlayerName(savedName);
+          }
+        } catch (_) {}
+      }
       if (gs?.gameId && gs?.code && pn) {
         s.emit('rejoin-game', {
           gameId: gs.gameId,
@@ -100,24 +121,29 @@ function App() {
     });
 
     s.on('game-created', ({ code, gameId, playerId, players }) => {
-      setGameState({
-        code,
-        gameId,
-        playerId,
-        players,
-        isHost: true,
-      });
+      setGameState({ code, gameId, playerId, players, isHost: true });
+      try {
+        sessionStorage.setItem('sus_game', JSON.stringify({ gameId, code }));
+        const pn = playerNameRef.current;
+        if (pn) sessionStorage.setItem('sus_playerName', pn);
+      } catch (_) {}
       setScreen('lobby');
     });
 
-    s.on('joined-game', ({ gameId, playerId, players }) => {
+    s.on('joined-game', ({ gameId, playerId, players, code }) => {
       setGameState((prev) => ({
         ...prev,
         gameId,
         playerId,
-        players,
+        players: players || [],
         isHost: false,
+        code: code || prev.code,
       }));
+      try {
+        sessionStorage.setItem('sus_game', JSON.stringify({ gameId, code: code }));
+        const pn = playerNameRef.current;
+        if (pn) sessionStorage.setItem('sus_playerName', pn);
+      } catch (_) {}
       setScreen('lobby');
     });
 
@@ -184,7 +210,7 @@ function App() {
     return () => s.disconnect();
   }, []);
 
-  const retryConnection = async () => {
+  const retryConnection = useCallback(async () => {
     if (!socket) return;
     setError('');
     setConnecting(true);
@@ -198,7 +224,25 @@ function App() {
       socket.disconnect();
     }
     socket.connect();
-  };
+  }, [socket]);
+
+  useEffect(() => {
+    if (!disconnected || !socket || connecting) return;
+    const id = setInterval(retryConnection, 6000);
+    return () => clearInterval(id);
+  }, [disconnected, socket, connecting, retryConnection]);
+
+  useEffect(() => {
+    if (!socket || screen === 'home' || connecting) return;
+    const REFRESH_MS = 10 * 60 * 1000;
+    const id = setInterval(() => {
+      if (!socket.connected || connecting) return;
+      isRefreshRef.current = true;
+      socket.disconnect();
+      socket.connect();
+    }, REFRESH_MS);
+    return () => clearInterval(id);
+  }, [socket, screen, connecting]);
 
   const wakeServerThenConnect = async (action) => {
     if (!socket) return;
@@ -215,6 +259,13 @@ function App() {
     }
     socket.connect();
     action();
+  };
+
+  const persistGameInfo = (gameId, code, name) => {
+    try {
+      sessionStorage.setItem('sus_game', JSON.stringify({ gameId, code }));
+      if (name) sessionStorage.setItem('sus_playerName', name);
+    } catch (_) {}
   };
 
   const createGame = (name) => {
@@ -234,16 +285,19 @@ function App() {
       return;
     }
     setPlayerName(name);
+    persistGameInfo(null, code.toUpperCase().trim(), name);
     wakeServerThenConnect(() => {
       socket.emit('join-game', { code: code.toUpperCase().trim(), playerName: name, userId: userId || undefined });
     });
   };
 
   const startGame = () => {
+    if (!socket?.connected) { setError('Reconnecting…'); retryConnection(); return; }
     socket.emit('start-game', { gameId: gameState.gameId });
   };
 
   const newRound = () => {
+    if (!socket?.connected) { setError('Reconnecting…'); retryConnection(); return; }
     socket.emit('new-round', { gameId: gameState.gameId });
   };
 
@@ -255,12 +309,12 @@ function App() {
   };
 
   const startVote = () => {
-    if (socket && gameState.gameId) {
-      socket.emit('start-vote', { gameId: gameState.gameId });
-    }
+    if (!socket?.connected) { setError('Reconnecting…'); retryConnection(); return; }
+    if (socket && gameState.gameId) socket.emit('start-vote', { gameId: gameState.gameId });
   };
 
   const submitVote = (votedPlayerIds, noImposter) => {
+    if (!socket?.connected) { setError('Reconnecting…'); retryConnection(); return; }
     if (socket && gameState.gameId) {
       socket.emit('submit-vote', {
         gameId: gameState.gameId,
@@ -342,20 +396,39 @@ function App() {
 
   if (screen === 'lobby') {
     return (
-      <Lobby
-        code={gameState.code}
-        players={gameState.players}
-        isHost={gameState.isHost}
-        playerName={playerName}
-        onStartGame={startGame}
-        error={error?.includes("Can't reach server") ? null : error}
-      />
+      <>
+        {disconnected && (
+          <div className="app__reconnect" role="alert">
+            Connection lost.{' '}
+            <button type="button" className="app__reconnect-btn" onClick={retryConnection} disabled={connecting}>
+              {connecting ? 'Reconnecting…' : 'Tap to retry'}
+            </button>
+          </div>
+        )}
+        <Lobby
+          code={gameState.code}
+          players={gameState.players}
+          isHost={gameState.isHost}
+          playerName={playerName}
+          onStartGame={startGame}
+          error={error?.includes("Can't reach server") ? null : error}
+        />
+      </>
     );
   }
 
   if (screen === 'word' && wordData) {
     return (
-      <YourWord
+      <>
+        {disconnected && (
+          <div className="app__reconnect" role="alert">
+            Connection lost.{' '}
+            <button type="button" className="app__reconnect-btn" onClick={retryConnection} disabled={connecting}>
+              {connecting ? 'Reconnecting…' : 'Tap to retry'}
+            </button>
+          </div>
+        )}
+        <YourWord
         word={wordData.word}
         turnOrderText={wordData.turnOrderText}
         turnOrder={wordData.turnOrder}
@@ -386,6 +459,7 @@ function App() {
         error={error?.includes("Can't reach server") ? null : error}
         onClearError={() => setError('')}
       />
+      </>
     );
   }
 

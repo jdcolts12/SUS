@@ -53,7 +53,7 @@ export const api = {
   getStats: (userId) => fetchApi(`/users/${userId}/stats`),
   revealImposter: async (gameId, code, playerName) => {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 25000);
+    const t = setTimeout(() => ctrl.abort(), 45000);
     try {
       const data = await fetchApi('/reveal-imposter', {
         method: 'POST',

@@ -46,6 +46,19 @@ function YourWord({
   }, [votePhase, word]);
 
   useEffect(() => {
+    if (isRevealing) {
+      const t = setTimeout(() => {
+        setIsRevealing(false);
+        if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
+        revealTimeoutRef.current = null;
+        retryIdsRef.current.forEach(clearTimeout);
+        retryIdsRef.current = [];
+      }, 90000);
+      return () => clearTimeout(t);
+    }
+  }, [isRevealing]);
+
+  useEffect(() => {
     if (votePhase === 'revealed' && revealData) {
       revealDoneRef.current = true;
       if (revealTimeoutRef.current) {
@@ -91,18 +104,14 @@ function YourWord({
 
   const getHint = () => {
     if (isImposter) {
-      return roundVariant === 'two_imposters'
-        ? "You're one of 2 imposters! You know the category but not the word. Blend in—you have an ally!"
-        : "You know the category but not the word. Describe vaguely and blend in!";
+      return "You know the category but not the word. Describe vaguely and blend in!";
     }
-    return roundVariant === 'two_imposters'
-      ? "There are 2 imposters this round. Describe your word and listen for who might be faking."
-      : "Describe your word without saying it. Listen for who might be faking.";
+    return "Describe your word without saying it. Listen for who might be faking.";
   };
 
   const getLabel = () => {
     if (roundVariant === 'no_imposter') return "Your word";
-    if (isImposter) return roundVariant === 'two_imposters' ? "You're an imposter (1 of 2)" : "You're the imposter";
+    if (isImposter) return "You're the imposter";
     return "Your word";
   };
 
@@ -114,7 +123,20 @@ function YourWord({
     const now = Date.now();
     if (now - revealLastFired.current < 300) return;
     revealLastFired.current = now;
-    if (!gameId || !gameCode || !playerName) {
+    let gid = gameId;
+    let gc = gameCode;
+    let pn = playerName;
+    if (!gid || !gc || !pn) {
+      try {
+        const raw = sessionStorage.getItem('sus_game');
+        const saved = raw ? JSON.parse(raw) : {};
+        const savedName = sessionStorage.getItem('sus_playerName');
+        if (!gid && saved?.gameId) gid = saved.gameId;
+        if (!gc && saved?.code) gc = saved.code;
+        if (!pn && savedName) pn = savedName;
+      } catch (_) {}
+    }
+    if (!gid || !gc || !pn) {
       onRevealError?.('Missing game info. Go back to lobby and rejoin.');
       return;
     }
@@ -150,11 +172,11 @@ function YourWord({
 
     socket?.once('reveal-result', handleResult);
     socket?.once('imposter-revealed', (data) => handleResult({ ok: true, ...data }));
-    if (socket?.connected) socket.emit('reveal-imposter', { gameId });
+    if (socket?.connected) socket.emit('reveal-imposter', { gameId: gid });
 
     const tryHttp = () => {
       if (revealDoneRef.current) return;
-      api.revealImposter(gameId, gameCode, playerName)
+      api.revealImposter(gid, gc, pn)
         .then(handleResult)
         .catch((err) => {
           if (revealDoneRef.current) return;
@@ -175,8 +197,8 @@ function YourWord({
       if (revealDoneRef.current) return;
       clearAll();
       setIsRevealing(false);
-      onRevealError?.('Server slow to respond. Tap Cancel, wait 10 seconds, then try again.');
-    }, 28000);
+      onRevealError?.('Still connecting. Tap Cancel, then try again.');
+    }, 60000);
   };
 
   return (
