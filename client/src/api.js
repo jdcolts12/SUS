@@ -51,6 +51,31 @@ export const api = {
   getFriendRequests: (userId) => fetchApi(`/users/${userId}/friends/requests`),
   getFriends: (userId) => fetchApi(`/users/${userId}/friends`),
   getStats: (userId) => fetchApi(`/users/${userId}/stats`),
+  submitVote: async (gameId, code, playerName, votedPlayerIds, noImposter, players = []) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const ids = noImposter ? [] : (Array.isArray(votedPlayerIds) ? votedPlayerIds : []);
+      const votedPlayerNames = ids.map((id) => players.find((p) => p.id === id)?.name).filter(Boolean);
+      const data = await fetchApi('/submit-vote', {
+        method: 'POST',
+        body: JSON.stringify({
+          gameId,
+          code,
+          playerName,
+          votedPlayerIds: ids,
+          votedPlayerNames: votedPlayerNames.length ? votedPlayerNames : undefined,
+          noImposter: !!noImposter,
+        }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      return data;
+    } catch (e) {
+      clearTimeout(t);
+      throw e;
+    }
+  },
   revealImposter: async (gameId, code, playerName) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 45000);

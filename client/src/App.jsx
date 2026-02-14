@@ -313,15 +313,37 @@ function App() {
     if (socket && gameState.gameId) socket.emit('start-vote', { gameId: gameState.gameId });
   };
 
-  const submitVote = (votedPlayerIds, noImposter) => {
-    if (!socket?.connected) { setError('Reconnecting…'); retryConnection(); return; }
-    if (socket && gameState.gameId) {
+  const submitVote = (votedPlayerIds, noImposter, players = []) => {
+    let gid = gameState.gameId;
+    let gc = gameState.code;
+    let pn = playerName;
+    if (!gid || !gc || !pn) {
+      try {
+        const raw = sessionStorage.getItem('sus_game');
+        const saved = raw ? JSON.parse(raw) : {};
+        const savedName = sessionStorage.getItem('sus_playerName');
+        if (!gid && saved?.gameId) gid = saved.gameId;
+        if (!gc && saved?.code) gc = saved.code;
+        if (!pn && savedName) pn = savedName;
+      } catch (_) {}
+    }
+    if (socket?.connected && gid) {
       socket.emit('submit-vote', {
-        gameId: gameState.gameId,
+        gameId: gid,
         votedPlayerIds: noImposter ? [] : votedPlayerIds,
         noImposter: !!noImposter,
       });
     }
+    if (gid && gc && pn) {
+      return api.submitVote(gid, gc, pn, noImposter ? [] : votedPlayerIds, !!noImposter, players)
+        .then(() => { setError(''); return true; })
+        .catch((err) => {
+          setError(err?.message || 'Vote failed. Tap Submit again.');
+          return Promise.reject(err);
+        });
+    }
+    setError('Missing game info. Go back to lobby and rejoin.');
+    return Promise.reject(new Error('Missing game info'));
   };
 
   if (screen === 'profile' && userId) {

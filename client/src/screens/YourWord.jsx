@@ -95,11 +95,13 @@ function YourWord({
   const handleSubmitVote = () => {
     if (hasSubmitted) return;
     setHasSubmitted(true);
-    if (noImposterSelected) {
-      onSubmitVote?.([], true);
-    } else {
-      onSubmitVote?.(selectedIds, false);
-    }
+    const promise = noImposterSelected
+      ? onSubmitVote?.([], true, players)
+      : onSubmitVote?.(selectedIds, false, players);
+    promise?.catch?.((err) => {
+      setHasSubmitted(false);
+      onRevealError?.(err?.message || 'Vote failed.');
+    });
   };
 
   const getHint = () => {

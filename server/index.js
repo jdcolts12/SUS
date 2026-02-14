@@ -21,6 +21,21 @@ const games = new Map();
 const roomCodes = new Map();
 const disconnectTimeouts = new Map();
 
+function getVotedCount(game) {
+  return game.players.filter(
+    (p) => game.votes?.[p.id] !== undefined || game.votes?.[`__http__${p.name}`] !== undefined
+  ).length;
+}
+
+function getVotesForTally(game) {
+  const out = [];
+  game.players.forEach((p) => {
+    const v = game.votes?.[p.id] ?? game.votes?.[`__http__${p.name}`];
+    if (v !== undefined) out.push(v);
+  });
+  return out;
+}
+
 const io = new Server(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
   pingTimeout: 60000,
@@ -49,13 +64,13 @@ app.post('/api/reveal-imposter', (req, res) => {
     const round = game.currentRound;
     if (!round) return res.status(400).json({ ok: false, error: 'No active round.' });
     const totalPlayers = game.players.length;
-    const votedCount = game.players.filter((p) => game.votes?.[p.id] !== undefined).length;
+    const votedCount = getVotedCount(game);
     if (votedCount < totalPlayers) {
       return res.status(400).json({ ok: false, error: `Waiting for votes (${votedCount}/${totalPlayers}).` });
     }
     const tally = {};
     game.players.forEach((p) => { tally[p.id] = 0; });
-    Object.values(game.votes || {}).forEach((vote) => {
+    getVotesForTally(game).forEach((vote) => {
       if (vote === '__no_imposter__') return;
       if (Array.isArray(vote)) vote.forEach((id) => { if (tally[id] !== undefined) tally[id]++; });
     });
@@ -98,6 +113,50 @@ app.post('/api/reveal-imposter', (req, res) => {
     console.error('[reveal-imposter HTTP]', err);
     const msg = err?.message || 'Something went wrong.';
     res.status(500).json({ ok: false, error: msg.startsWith('game') || msg.length > 80 ? 'Something went wrong.' : msg });
+  }
+});
+
+// HTTP vote fallback (always works when socket is flaky)
+app.post('/api/submit-vote', (req, res) => {
+  try {
+    const { gameId, code, playerName, votedPlayerIds, noImposter } = req.body;
+    if (!gameId || !code || !playerName) {
+      return res.status(400).json({ ok: false, error: 'gameId, code, and playerName required' });
+    }
+    const game = games.get(gameId);
+    if (!game || game.code !== String(code).toUpperCase()) {
+      return res.status(404).json({ ok: false, error: 'Game not found.' });
+    }
+    const player = game.players.find((p) => p.name.toLowerCase() === String(playerName).toLowerCase());
+    if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
+    if (game.status !== 'playing' || game.votePhase !== 'voting') {
+      return res.status(400).json({ ok: false, error: 'Voting is not open.' });
+    }
+    let voteIds = [];
+    if (noImposter) {
+      voteIds = null;
+    } else if (Array.isArray(req.body.votedPlayerNames) && req.body.votedPlayerNames.length > 0) {
+      voteIds = req.body.votedPlayerNames
+        .map((n) => game.players.find((p) => p.name.toLowerCase() === String(n).toLowerCase())?.id)
+        .filter(Boolean);
+    } else {
+      voteIds = (Array.isArray(votedPlayerIds) ? votedPlayerIds : []).filter((id) =>
+        game.players.some((p) => p.id === id)
+      );
+    }
+    const vote = noImposter ? '__no_imposter__' : voteIds;
+    if (!game.votes) game.votes = {};
+    delete game.votes[player.id];
+    delete game.votes[`__http__${player.name}`];
+    game.votes[`__http__${player.name}`] = vote;
+    const votedCount = game.players.filter(
+      (p) => game.votes?.[p.id] !== undefined || game.votes?.[`__http__${p.name}`] !== undefined
+    ).length;
+    io.to(game.code).emit('vote-received', { votedCount, totalPlayers: game.players.length });
+    res.json({ ok: true, votedCount });
+  } catch (err) {
+    console.error('[submit-vote HTTP]', err);
+    res.status(500).json({ ok: false, error: err?.message || 'Vote failed.' });
   }
 });
 
@@ -157,10 +216,15 @@ io.on('connection', (socket) => {
     if (isHost || game.hostId === oldId) {
       game.hostId = socket.id;
     }
-    // Migrate vote from old socket id so reveal count stays correct
-    if (game.votes && game.votes[oldId] !== undefined) {
-      game.votes[socket.id] = game.votes[oldId];
-      delete game.votes[oldId];
+    // Migrate vote from old socket id or HTTP key so reveal count stays correct
+    const httpKey = `__http__${player.name}`;
+    if (game.votes) {
+      const existingVote = game.votes[oldId] ?? game.votes[httpKey];
+      if (existingVote !== undefined) {
+        game.votes[socket.id] = existingVote;
+        delete game.votes[oldId];
+        delete game.votes[httpKey];
+      }
     }
     // Update votes-for: anyone who voted for this player's old id should reference new id for tally
     if (game.votes) {
@@ -296,18 +360,20 @@ io.on('connection', (socket) => {
   socket.on('submit-vote', ({ gameId, votedPlayerIds, noImposter }) => {
     const game = games.get(gameId);
     if (!game || game.status !== 'playing' || game.votePhase !== 'voting') return;
-    if (!game.players.some((p) => p.id === socket.id)) return;
+    const player = game.players.find((p) => p.id === socket.id);
+    if (!player) return;
 
     const vote = noImposter
       ? '__no_imposter__'
       : (Array.isArray(votedPlayerIds) ? votedPlayerIds : []).filter((id) =>
           game.players.some((p) => p.id === id)
         );
+    if (!game.votes) game.votes = {};
+    delete game.votes[`__http__${player.name}`];
     game.votes[socket.id] = vote;
 
-    const votedCount = Object.keys(game.votes).length;
-    const totalPlayers = game.players.length;
-    io.to(game.code).emit('vote-received', { votedCount, totalPlayers });
+    const votedCount = getVotedCount(game);
+    io.to(game.code).emit('vote-received', { votedCount, totalPlayers: game.players.length });
   });
 
   // Host reveals imposter after everyone has voted
@@ -339,7 +405,7 @@ io.on('connection', (socket) => {
 
       const round = game.currentRound;
       const totalPlayers = game.players.length;
-      const votedCount = game.players.filter((p) => game.votes?.[p.id] !== undefined).length;
+      const votedCount = getVotedCount(game);
       if (votedCount < totalPlayers) {
         console.log('[reveal-imposter] rejected: waiting for votes', { votedCount, totalPlayers });
         socket.emit('reveal-error', { message: `Waiting for votes (${votedCount}/${totalPlayers}).` });
@@ -350,7 +416,7 @@ io.on('connection', (socket) => {
       console.log('[reveal-imposter] success');
       const tally = {};
       game.players.forEach((p) => { tally[p.id] = 0; });
-      Object.values(game.votes || {}).forEach((vote) => {
+      getVotesForTally(game).forEach((vote) => {
         if (vote === '__no_imposter__') return;
         if (Array.isArray(vote)) {
           vote.forEach((id) => { if (tally[id] !== undefined) tally[id]++; });
