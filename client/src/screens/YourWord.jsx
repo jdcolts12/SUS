@@ -27,6 +27,7 @@ function YourWord({
   onRevealSuccess,
   error,
   onClearError,
+  onRetryConnection,
 }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [noImposterSelected, setNoImposterSelected] = useState(false);
@@ -94,6 +95,7 @@ function YourWord({
 
   const handleSubmitVote = () => {
     if (hasSubmitted) return;
+    onRetryConnection?.();
     setHasSubmitted(true);
     const promise = noImposterSelected
       ? onSubmitVote?.([], true, players)
@@ -125,6 +127,7 @@ function YourWord({
     const now = Date.now();
     if (now - revealLastFired.current < 300) return;
     revealLastFired.current = now;
+    onRetryConnection?.();
     let gid = gameId;
     let gc = gameCode;
     let pn = playerName;

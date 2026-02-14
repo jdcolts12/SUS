@@ -76,6 +76,54 @@ export const api = {
       throw e;
     }
   },
+  startGame: async (gameId, code, playerName) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const data = await fetchApi('/start-game', {
+        method: 'POST',
+        body: JSON.stringify({ gameId, code, playerName }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      return data;
+    } catch (e) {
+      clearTimeout(t);
+      throw e;
+    }
+  },
+  newRound: async (gameId, code, playerName) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const data = await fetchApi('/new-round', {
+        method: 'POST',
+        body: JSON.stringify({ gameId, code, playerName }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      return data;
+    } catch (e) {
+      clearTimeout(t);
+      throw e;
+    }
+  },
+  startVote: async (gameId, code, playerName) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const data = await fetchApi('/start-vote', {
+        method: 'POST',
+        body: JSON.stringify({ gameId, code, playerName }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      return data;
+    } catch (e) {
+      clearTimeout(t);
+      throw e;
+    }
+  },
   revealImposter: async (gameId, code, playerName) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 45000);

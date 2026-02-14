@@ -291,29 +291,7 @@ function App() {
     });
   };
 
-  const startGame = () => {
-    if (!socket?.connected) { setError('Reconnecting…'); retryConnection(); return; }
-    socket.emit('start-game', { gameId: gameState.gameId });
-  };
-
-  const newRound = () => {
-    if (!socket?.connected) { setError('Reconnecting…'); retryConnection(); return; }
-    socket.emit('new-round', { gameId: gameState.gameId });
-  };
-
-  const backToLobby = () => {
-    setWordData(null);
-    setVotePhase(null);
-    setRevealData(null);
-    setScreen('lobby');
-  };
-
-  const startVote = () => {
-    if (!socket?.connected) { setError('Reconnecting…'); retryConnection(); return; }
-    if (socket && gameState.gameId) socket.emit('start-vote', { gameId: gameState.gameId });
-  };
-
-  const submitVote = (votedPlayerIds, noImposter, players = []) => {
+  const getGameCreds = () => {
     let gid = gameState.gameId;
     let gc = gameState.code;
     let pn = playerName;
@@ -327,6 +305,93 @@ function App() {
         if (!pn && savedName) pn = savedName;
       } catch (_) {}
     }
+    return { gameId: gid, code: gc, playerName: pn };
+  };
+
+  const startGame = () => {
+    if (!socket) { setError('Loading... try again in a moment.'); return; }
+    if (!socket?.connected) retryConnection();
+    const { gameId, code, playerName } = getGameCreds();
+    if (socket?.connected && gameId) socket.emit('start-game', { gameId });
+    if (gameId && code && playerName) {
+      api.startGame(gameId, code, playerName)
+        .then((data) => {
+          setError('');
+          if (data?.word !== undefined) {
+            setWordData({
+              word: data.word,
+              turnOrderText: data.turnOrderText,
+              turnOrder: data.turnOrder,
+              totalPlayers: data.totalPlayers,
+              isImposter: data.isImposter,
+              roundVariant: data.roundVariant || 'normal',
+            });
+            setVotePhase(null);
+            setRevealData(null);
+            setScreen('word');
+          }
+        })
+        .catch((err) => setError(err?.message || 'Start failed. Tap again.'));
+    } else {
+      setError('Missing game info. Go back to lobby and rejoin.');
+    }
+  };
+
+  const newRound = () => {
+    if (!socket) { setError('Loading... try again in a moment.'); return; }
+    if (!socket?.connected) retryConnection();
+    const { gameId, code, playerName } = getGameCreds();
+    if (socket?.connected && gameId) socket.emit('new-round', { gameId });
+    if (gameId && code && playerName) {
+      api.newRound(gameId, code, playerName)
+        .then((data) => {
+          setError('');
+          if (data?.word !== undefined) {
+            setWordData({
+              word: data.word,
+              turnOrderText: data.turnOrderText,
+              turnOrder: data.turnOrder,
+              totalPlayers: data.totalPlayers,
+              isImposter: data.isImposter,
+              roundVariant: data.roundVariant || 'normal',
+            });
+            setVotePhase(null);
+            setRevealData(null);
+          }
+        })
+        .catch((err) => setError(err?.message || 'New round failed. Tap again.'));
+    } else {
+      setError('Missing game info. Go back to lobby and rejoin.');
+    }
+  };
+
+  const backToLobby = () => {
+    setWordData(null);
+    setVotePhase(null);
+    setRevealData(null);
+    setScreen('lobby');
+  };
+
+  const startVote = () => {
+    if (!socket) { setError('Loading... try again in a moment.'); return; }
+    if (!socket?.connected) retryConnection();
+    const { gameId, code, playerName } = getGameCreds();
+    if (socket?.connected && gameId) socket.emit('start-vote', { gameId });
+    if (gameId && code && playerName) {
+      api.startVote(gameId, code, playerName)
+        .then(() => {
+          setError('');
+          setVotePhase('voting');
+          setVotedCount(0);
+        })
+        .catch((err) => setError(err?.message || 'Start vote failed. Tap again.'));
+    } else {
+      setError('Missing game info. Go back to lobby and rejoin.');
+    }
+  };
+
+  const submitVote = (votedPlayerIds, noImposter, players = []) => {
+    const { gameId: gid, code: gc, playerName: pn } = getGameCreds();
     if (socket?.connected && gid) {
       socket.emit('submit-vote', {
         gameId: gid,
@@ -480,6 +545,7 @@ function App() {
         }}
         error={error?.includes("Can't reach server") ? null : error}
         onClearError={() => setError('')}
+        onRetryConnection={retryConnection}
       />
       </>
     );

@@ -160,6 +160,131 @@ app.post('/api/submit-vote', (req, res) => {
   }
 });
 
+app.post('/api/start-game', (req, res) => {
+  try {
+    const { gameId, code, playerName } = req.body;
+    if (!gameId || !code || !playerName) {
+      return res.status(400).json({ ok: false, error: 'gameId, code, and playerName required' });
+    }
+    const game = games.get(gameId);
+    if (!game || game.code !== String(code).toUpperCase()) {
+      return res.status(404).json({ ok: false, error: 'Game not found.' });
+    }
+    const player = game.players.find((p) => p.name.toLowerCase() === String(playerName).toLowerCase());
+    if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
+    if (game.hostId !== player.id) return res.status(403).json({ ok: false, error: 'Only the host can start.' });
+    if (game.players.length < 4) {
+      return res.status(400).json({ ok: false, error: 'Need at least 4 players to start!' });
+    }
+    const playerIds = game.players.map((p) => p.id);
+    const round = createRound(playerIds);
+    game.currentRound = round;
+    game.status = 'playing';
+    game.players.forEach((p) => {
+      const a = round.assignments[p.id];
+      const payload = {
+        turnOrderText: a.turnOrderText,
+        turnOrder: a.turnOrder,
+        totalPlayers: game.players.length,
+        roundVariant: a.roundVariant,
+        word: a.isImposter ? `${a.category}\n\nIMPOSTER` : a.word,
+        isImposter: a.isImposter,
+      };
+      io.to(p.id).emit('your-word', payload);
+    });
+    io.to(game.code).emit('game-started', {
+      players: game.players,
+      turnOrder: round.turnOrder.map((id) => game.players.find((p) => p.id === id)?.name),
+    });
+    const a = round.assignments[player.id];
+    res.json({
+      ok: true,
+      word: a.isImposter ? `${a.category}\n\nIMPOSTER` : a.word,
+      turnOrderText: a.turnOrderText,
+      turnOrder: a.turnOrder,
+      totalPlayers: game.players.length,
+      isImposter: a.isImposter,
+      roundVariant: a.roundVariant,
+    });
+  } catch (err) {
+    console.error('[start-game HTTP]', err);
+    res.status(500).json({ ok: false, error: err?.message || 'Start failed.' });
+  }
+});
+
+app.post('/api/new-round', (req, res) => {
+  try {
+    const { gameId, code, playerName } = req.body;
+    if (!gameId || !code || !playerName) {
+      return res.status(400).json({ ok: false, error: 'gameId, code, and playerName required' });
+    }
+    const game = games.get(gameId);
+    if (!game || game.code !== String(code).toUpperCase()) {
+      return res.status(404).json({ ok: false, error: 'Game not found.' });
+    }
+    const player = game.players.find((p) => p.name.toLowerCase() === String(playerName).toLowerCase());
+    if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
+    if (game.hostId !== player.id || game.status !== 'playing') {
+      return res.status(403).json({ ok: false, error: 'Only the host can start a new round.' });
+    }
+    game.votePhase = null;
+    game.votes = null;
+    const playerIds = game.players.map((p) => p.id);
+    const round = createRound(playerIds);
+    game.currentRound = round;
+    game.players.forEach((p) => {
+      const a = round.assignments[p.id];
+      io.to(p.id).emit('your-word', {
+        turnOrderText: a.turnOrderText,
+        turnOrder: a.turnOrder,
+        totalPlayers: game.players.length,
+        roundVariant: a.roundVariant,
+        word: a.isImposter ? `${a.category}\n\nIMPOSTER` : a.word,
+        isImposter: a.isImposter,
+      });
+    });
+    io.to(game.code).emit('round-started');
+    const a2 = round.assignments[player.id];
+    res.json({
+      ok: true,
+      word: a2.isImposter ? `${a2.category}\n\nIMPOSTER` : a2.word,
+      turnOrderText: a2.turnOrderText,
+      turnOrder: a2.turnOrder,
+      totalPlayers: game.players.length,
+      isImposter: a2.isImposter,
+      roundVariant: a2.roundVariant,
+    });
+  } catch (err) {
+    console.error('[new-round HTTP]', err);
+    res.status(500).json({ ok: false, error: err?.message || 'New round failed.' });
+  }
+});
+
+app.post('/api/start-vote', (req, res) => {
+  try {
+    const { gameId, code, playerName } = req.body;
+    if (!gameId || !code || !playerName) {
+      return res.status(400).json({ ok: false, error: 'gameId, code, and playerName required' });
+    }
+    const game = games.get(gameId);
+    if (!game || game.code !== String(code).toUpperCase()) {
+      return res.status(404).json({ ok: false, error: 'Game not found.' });
+    }
+    const player = game.players.find((p) => p.name.toLowerCase() === String(playerName).toLowerCase());
+    if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
+    if (game.hostId !== player.id || game.status !== 'playing' || !game.currentRound) {
+      return res.status(403).json({ ok: false, error: 'Only the host can start voting.' });
+    }
+    game.votePhase = 'voting';
+    game.votes = {};
+    io.to(game.code).emit('vote-started', { players: game.players });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[start-vote HTTP]', err);
+    res.status(500).json({ ok: false, error: err?.message || 'Start vote failed.' });
+  }
+});
+
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
