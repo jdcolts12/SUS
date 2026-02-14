@@ -367,9 +367,12 @@ io.on('connection', (socket) => {
       disconnectTimeouts.delete(oldId);
     }
     socket.join(game.code);
-    if (game.votePhase === 'voting' && game.votes) {
-      const vc = Object.keys(game.votes).length;
-      socket.emit('vote-received', { votedCount: vc, totalPlayers: game.players.length });
+    if (game.votePhase === 'voting') {
+      socket.emit('vote-started', { players: game.players });
+      if (game.votes) {
+        const vc = getVotedCount(game);
+        socket.emit('vote-received', { votedCount: vc, totalPlayers: game.players.length });
+      }
     }
     if (typeof ack === 'function') ack({ ok: true });
   });
