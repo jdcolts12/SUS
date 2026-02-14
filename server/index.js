@@ -69,14 +69,18 @@ app.post('/api/reveal-imposter', (req, res) => {
     if (round.roundVariant !== 'no_imposter') {
       game.players.forEach((p) => {
         if (p.userId) {
-          const wasImposter = round.imposterIds.includes(p.id);
-          const won = wasImposter ? !votedWasImposter : votedWasImposter;
-          db.recordRoundResult(p.userId, wasImposter, won);
+          try {
+            const wasImposter = round.imposterIds.includes(p.id);
+            const won = wasImposter ? !votedWasImposter : votedWasImposter;
+            db.recordRoundResult(p.userId, wasImposter, won);
+          } catch (e) {
+            console.warn('[reveal] recordRoundResult failed:', e?.message);
+          }
         }
       });
     }
     game.votePhase = 'revealed';
-    const imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+    const imposterNames = (round.imposterIds || []).map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
     const votedPlayerName = votedPlayerId ? game.players.find((p) => p.id === votedPlayerId)?.name : null;
     const payload = {
       imposterIds: round.imposterIds,
@@ -93,7 +97,8 @@ app.post('/api/reveal-imposter', (req, res) => {
     res.json({ ok: true, ...payload });
   } catch (err) {
     console.error('[reveal-imposter HTTP]', err);
-    res.status(500).json({ ok: false, error: 'Something went wrong.' });
+    const msg = err?.message || 'Something went wrong.';
+    res.status(500).json({ ok: false, error: msg.startsWith('game') || msg.length > 80 ? 'Something went wrong.' : msg });
   }
 });
 
@@ -361,9 +366,13 @@ io.on('connection', (socket) => {
       if (round.roundVariant !== 'no_imposter') {
         game.players.forEach((p) => {
           if (p.userId) {
-            const wasImposter = round.imposterIds.includes(p.id);
-            const won = wasImposter ? !votedWasImposter : votedWasImposter;
-            db.recordRoundResult(p.userId, wasImposter, won);
+            try {
+              const wasImposter = round.imposterIds.includes(p.id);
+              const won = wasImposter ? !votedWasImposter : votedWasImposter;
+              db.recordRoundResult(p.userId, wasImposter, won);
+            } catch (e) {
+              console.warn('[reveal-imposter] recordRoundResult failed:', e?.message);
+            }
           }
         });
       }
@@ -393,8 +402,9 @@ io.on('connection', (socket) => {
       socket.emit('imposter-revealed', payload);
     } catch (err) {
       console.error('[reveal-imposter] error:', err);
-      socket.emit('reveal-error', { message: 'Something went wrong.' });
-      sendResult({ ok: false, error: 'Something went wrong.' });
+      const msg = (err?.message || 'Something went wrong.').slice(0, 100);
+      socket.emit('reveal-error', { message: msg });
+      sendResult({ ok: false, error: msg });
     }
   });
 
