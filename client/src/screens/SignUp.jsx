@@ -52,7 +52,7 @@ function SignUp({ onSignedUp, onBack, onSignIn }) {
           minLength={4}
           required
         />
-        {error && <p className="signup__error">{error}</p>}
+        {error && <p className="signup__error" role="alert">{error}</p>}
         <button type="submit" className="btn btn--primary" disabled={loading}>
           {loading ? 'Creating...' : 'Create Account'}
         </button>
