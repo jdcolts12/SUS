@@ -51,4 +51,20 @@ export const api = {
   getFriendRequests: (userId) => fetchApi(`/users/${userId}/friends/requests`),
   getFriends: (userId) => fetchApi(`/users/${userId}/friends`),
   getStats: (userId) => fetchApi(`/users/${userId}/stats`),
+  revealImposter: async (gameId, code, playerName) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 25000);
+    try {
+      const data = await fetchApi('/reveal-imposter', {
+        method: 'POST',
+        body: JSON.stringify({ gameId, code, playerName }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      return data;
+    } catch (e) {
+      clearTimeout(t);
+      throw e;
+    }
+  },
 };

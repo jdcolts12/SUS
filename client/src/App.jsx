@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Home from './screens/Home';
 import Lobby from './screens/Lobby';
@@ -10,8 +10,10 @@ import SignUp from './screens/SignUp';
 import SignIn from './screens/SignIn';
 import { api } from './api';
 
+const API_URL = import.meta.env.VITE_SOCKET_URL?.replace(/\/$/, '') || (import.meta.env.DEV ? `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3001` : null);
+
 // In dev: use same host as page (so phone at 192.168.x.x:5173 connects to 192.168.x.x:3001)
-// In prod: MUST set VITE_SOCKET_URL to your Railway server URL
+// In prod: MUST set VITE_SOCKET_URL to your Render server URL
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3001` : window.location.origin);
 
 function App() {
@@ -44,13 +46,20 @@ function App() {
   const [revealData, setRevealData] = useState(null);
   const [error, setError] = useState('');
   const [connecting, setConnecting] = useState(false);
+  const gameStateRef = useRef(gameState);
+  const playerNameRef = useRef(playerName);
+  useEffect(() => {
+    gameStateRef.current = gameState;
+    playerNameRef.current = playerName;
+  }, [gameState, playerName]);
 
   useEffect(() => {
     const url = SOCKET_URL.replace(/\/$/, ''); // no trailing slash
+    const isProd = !import.meta.env.DEV;
     const s = io(url, {
       autoConnect: false,
-      transports: ['websocket', 'polling'],
-      timeout: 10000,
+      transports: isProd ? ['polling', 'websocket'] : ['websocket', 'polling'],
+      timeout: isProd ? 90000 : 10000,
     });
     setSocket(s);
 
@@ -60,10 +69,10 @@ function App() {
       const hasSocketUrl = !!import.meta.env.VITE_SOCKET_URL;
       let msg;
       if (isProd && !hasSocketUrl) {
-        msg = "Server URL not configured. In Vercel: Settings → Environment Variables → Add VITE_SOCKET_URL = your Railway URL (e.g. https://sus-xxx.up.railway.app) → Redeploy.";
+        msg = "Server URL not configured. In Vercel: Settings → Environment Variables → Add VITE_SOCKET_URL = your Render URL (e.g. https://your-app.onrender.com) → Redeploy.";
       } else if (isProd) {
         const host = url.replace(/^https?:\/\//, '').split('/')[0] || 'server';
-        msg = `Can't reach server at ${host}. Verify: 1) Railway shows green/deployed 2) Open that URL/health in a new tab — should show {"ok":true} 3) VITE_SOCKET_URL in Vercel matches exactly 4) Redeployed after setting it.`;
+        msg = `Can't reach server. Tap Retry below (may take 30–60s if server was sleeping). Or check: ${url}/health`;
       } else {
         msg = "Can't reach game server. Run 'npm run dev:server' in another terminal.";
       }
@@ -74,6 +83,20 @@ function App() {
     s.on('connect', () => {
       setConnecting(false);
       setError('');
+      const gs = gameStateRef.current;
+      const pn = playerNameRef.current;
+      if (gs?.gameId && gs?.code && pn) {
+        s.emit('rejoin-game', {
+          gameId: gs.gameId,
+          code: gs.code,
+          playerName: pn,
+          isHost: !!gs.isHost,
+        }, (res) => {
+          if (res?.ok) {
+            setGameState((prev) => ({ ...prev, playerId: s.id }));
+          }
+        });
+      }
     });
 
     s.on('game-created', ({ code, gameId, playerId, players }) => {
@@ -130,6 +153,7 @@ function App() {
     });
 
     s.on('imposter-revealed', (data) => {
+      setError('');
       setVotePhase('revealed');
       setRevealData(data);
     });
@@ -146,19 +170,62 @@ function App() {
       setError(message);
     });
 
+    s.on('reveal-error', ({ message }) => {
+      setError(message);
+    });
+
+    s.on('new-host', ({ hostId }) => {
+      setGameState((prev) => ({
+        ...prev,
+        isHost: prev.playerId === hostId,
+      }));
+    });
+
     return () => s.disconnect();
   }, []);
+
+  const retryConnection = async () => {
+    if (!socket) return;
+    setError('');
+    setConnecting(true);
+    const url = (import.meta.env.VITE_SOCKET_URL || '').replace(/\/$/, '');
+    if (url && !import.meta.env.DEV) {
+      try {
+        const c = new AbortController();
+        setTimeout(() => c.abort(), 75000);
+        await fetch(`${url}/health`, { mode: 'cors', signal: c.signal });
+      } catch (_) {}
+      socket.disconnect();
+    }
+    socket.connect();
+  };
+
+  const wakeServerThenConnect = async (action) => {
+    if (!socket) return;
+    setError('');
+    setConnecting(true);
+    const url = (import.meta.env.VITE_SOCKET_URL || '').replace(/\/$/, '');
+    if (url && !import.meta.env.DEV) {
+      try {
+        const c = new AbortController();
+        setTimeout(() => c.abort(), 75000);
+        await fetch(`${url}/health`, { mode: 'cors', signal: c.signal });
+      } catch (_) {}
+      socket.disconnect();
+    }
+    socket.connect();
+    action();
+  };
 
   const createGame = (name) => {
     if (!socket) {
       setError('Loading... try again in a moment.');
       return;
     }
-    setError('');
     setPlayerName(name);
-    setConnecting(true);
-    socket.connect();
-    socket.emit('create-game', { playerName: name, userId: userId || undefined });
+    wakeServerThenConnect(() => {
+      socket.emit('create-game', { playerName: name, userId: userId || undefined });
+    });
   };
 
   const joinGame = (code, name) => {
@@ -166,11 +233,10 @@ function App() {
       setError('Loading... try again in a moment.');
       return;
     }
-    setError('');
     setPlayerName(name);
-    setConnecting(true);
-    socket.connect();
-    socket.emit('join-game', { code: code.toUpperCase().trim(), playerName: name, userId: userId || undefined });
+    wakeServerThenConnect(() => {
+      socket.emit('join-game', { code: code.toUpperCase().trim(), playerName: name, userId: userId || undefined });
+    });
   };
 
   const startGame = () => {
@@ -201,12 +267,6 @@ function App() {
         votedPlayerIds: noImposter ? [] : votedPlayerIds,
         noImposter: !!noImposter,
       });
-    }
-  };
-
-  const revealImposter = () => {
-    if (socket && gameState.gameId) {
-      socket.emit('reveal-imposter', { gameId: gameState.gameId });
     }
   };
 
@@ -274,6 +334,8 @@ function App() {
         username={username}
         error={error}
         connecting={connecting}
+        onRetryConnection={retryConnection}
+        serverHealthUrl={import.meta.env.VITE_SOCKET_URL ? `${import.meta.env.VITE_SOCKET_URL.replace(/\/$/, '')}/health` : null}
       />
     );
   }
@@ -286,7 +348,7 @@ function App() {
         isHost={gameState.isHost}
         playerName={playerName}
         onStartGame={startGame}
-        error={error}
+        error={error?.includes("Can't reach server") ? null : error}
       />
     );
   }
@@ -310,7 +372,19 @@ function App() {
         revealData={revealData}
         onStartVote={startVote}
         onSubmitVote={submitVote}
-        onRevealImposter={revealImposter}
+        socket={socket}
+        gameId={gameState.gameId}
+        gameCode={gameState.code}
+        playerName={playerName}
+        apiUrl={API_URL}
+        onRevealError={setError}
+        onRevealSuccess={(data) => {
+          setError('');
+          setVotePhase('revealed');
+          setRevealData(data);
+        }}
+        error={error?.includes("Can't reach server") ? null : error}
+        onClearError={() => setError('')}
       />
     );
   }

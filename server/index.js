@@ -17,6 +17,10 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 
 const httpServer = createServer(app);
 
+const games = new Map();
+const roomCodes = new Map();
+const disconnectTimeouts = new Map();
+
 const io = new Server(httpServer, {
   cors: {
     origin: '*',
@@ -24,9 +28,74 @@ const io = new Server(httpServer, {
   },
 });
 
-// In-memory game state (use Redis/DB for production)
-const games = new Map();
-const roomCodes = new Map(); // 6-char code -> gameId
+// HTTP reveal fallback (reliable on mobile when Socket.IO drops)
+app.post('/api/reveal-imposter', (req, res) => {
+  try {
+    const { gameId, code, playerName } = req.body;
+    if (!gameId || !code || !playerName) {
+      return res.status(400).json({ ok: false, error: 'gameId, code, and playerName required' });
+    }
+    const game = games.get(gameId);
+    if (!game || game.code !== String(code).toUpperCase()) {
+      return res.status(404).json({ ok: false, error: 'Game not found.' });
+    }
+    const player = game.players.find((p) => p.name.toLowerCase() === String(playerName).toLowerCase());
+    if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
+    if (game.hostId !== player.id) {
+      return res.status(403).json({ ok: false, error: 'Only the host can reveal.' });
+    }
+    if (game.status !== 'playing' || game.votePhase !== 'voting') {
+      return res.status(400).json({ ok: false, error: 'Cannot reveal right now.' });
+    }
+    const round = game.currentRound;
+    if (!round) return res.status(400).json({ ok: false, error: 'No active round.' });
+    const totalPlayers = game.players.length;
+    const votedCount = game.players.filter((p) => game.votes?.[p.id] !== undefined).length;
+    if (votedCount < totalPlayers) {
+      return res.status(400).json({ ok: false, error: `Waiting for votes (${votedCount}/${totalPlayers}).` });
+    }
+    const tally = {};
+    game.players.forEach((p) => { tally[p.id] = 0; });
+    Object.values(game.votes || {}).forEach((vote) => {
+      if (vote === '__no_imposter__') return;
+      if (Array.isArray(vote)) vote.forEach((id) => { if (tally[id] !== undefined) tally[id]++; });
+    });
+    let votedPlayerId = null;
+    let maxVotes = 0;
+    for (const [id, count] of Object.entries(tally)) {
+      if (count > maxVotes) { maxVotes = count; votedPlayerId = id; }
+    }
+    const votedWasImposter = votedPlayerId ? round.imposterIds.includes(votedPlayerId) : false;
+    if (round.roundVariant !== 'no_imposter') {
+      game.players.forEach((p) => {
+        if (p.userId) {
+          const wasImposter = round.imposterIds.includes(p.id);
+          const won = wasImposter ? !votedWasImposter : votedWasImposter;
+          db.recordRoundResult(p.userId, wasImposter, won);
+        }
+      });
+    }
+    game.votePhase = 'revealed';
+    const imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+    const votedPlayerName = votedPlayerId ? game.players.find((p) => p.id === votedPlayerId)?.name : null;
+    const payload = {
+      imposterIds: round.imposterIds,
+      imposterNames,
+      votedPlayerId,
+      votedPlayerName,
+      wasImposter: votedWasImposter,
+      teamWon: votedWasImposter,
+      category: round.category,
+      word: round.word,
+      noImposterRound: round.roundVariant === 'no_imposter',
+    };
+    io.to(game.code).emit('imposter-revealed', payload);
+    res.json({ ok: true, ...payload });
+  } catch (err) {
+    console.error('[reveal-imposter HTTP]', err);
+    res.status(500).json({ ok: false, error: 'Something went wrong.' });
+  }
+});
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -66,6 +135,46 @@ io.on('connection', (socket) => {
       playerId: socket.id,
       players: game.players,
     });
+  });
+
+  socket.on('rejoin-game', ({ gameId, code, playerName, isHost }, ack) => {
+    const game = games.get(gameId);
+    if (!game || game.code !== code?.toUpperCase()) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Game not found.' });
+      return;
+    }
+    const player = game.players.find((p) => p.name.toLowerCase() === (playerName || '').toLowerCase());
+    if (!player) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Player not found.' });
+      return;
+    }
+    const oldId = player.id;
+    player.id = socket.id;
+    if (isHost || game.hostId === oldId) {
+      game.hostId = socket.id;
+    }
+    // Migrate vote from old socket id so reveal count stays correct
+    if (game.votes && game.votes[oldId] !== undefined) {
+      game.votes[socket.id] = game.votes[oldId];
+      delete game.votes[oldId];
+    }
+    // Update votes-for: anyone who voted for this player's old id should reference new id for tally
+    if (game.votes) {
+      for (const sid of Object.keys(game.votes)) {
+        const v = game.votes[sid];
+        if (Array.isArray(v)) {
+          const idx = v.indexOf(oldId);
+          if (idx >= 0) v[idx] = socket.id;
+        }
+      }
+    }
+    const tid = disconnectTimeouts.get(oldId);
+    if (tid) {
+      clearTimeout(tid);
+      disconnectTimeouts.delete(oldId);
+    }
+    socket.join(game.code);
+    if (typeof ack === 'function') ack({ ok: true });
   });
 
   socket.on('join-game', ({ code, playerName, userId }) => {
@@ -122,9 +231,7 @@ io.on('connection', (socket) => {
         payload.word = `${assignment.category}\n\nIMPOSTER`;
         payload.isImposter = true;
       } else {
-        payload.word = assignment.roundVariant === 'no_imposter'
-          ? `${assignment.word}\n\n(No imposter this round!)`
-          : assignment.word;
+        payload.word = assignment.word;
         payload.isImposter = false;
       }
       io.to(player.id).emit('your-word', payload);
@@ -158,9 +265,7 @@ io.on('connection', (socket) => {
         payload.word = `${assignment.category}\n\nIMPOSTER`;
         payload.isImposter = true;
       } else {
-        payload.word = assignment.roundVariant === 'no_imposter'
-          ? `${assignment.word}\n\n(No imposter this round!)`
-          : assignment.word;
+        payload.word = assignment.word;
         payload.isImposter = false;
       }
       io.to(player.id).emit('your-word', payload);
@@ -173,8 +278,6 @@ io.on('connection', (socket) => {
   socket.on('start-vote', ({ gameId }) => {
     const game = games.get(gameId);
     if (!game || game.hostId !== socket.id || game.status !== 'playing' || !game.currentRound) return;
-    if (game.currentRound.roundVariant === 'no_imposter') return;
-
     game.votePhase = 'voting';
     game.votes = {};
     io.to(game.code).emit('vote-started', { players: game.players });
@@ -200,62 +303,99 @@ io.on('connection', (socket) => {
 
   // Host reveals imposter after everyone has voted
   socket.on('reveal-imposter', ({ gameId }) => {
-    const game = games.get(gameId);
-    if (!game || game.hostId !== socket.id || game.status !== 'playing' || game.votePhase !== 'voting') return;
-
-    const round = game.currentRound;
-    const totalPlayers = game.players.length;
-    const votedCount = Object.keys(game.votes || {}).length;
-    if (votedCount < totalPlayers) return;
-
-    // Tally votes: each voted player ID gets +1 per vote; __no_imposter__ doesn't add to anyone
-    const tally = {};
-    game.players.forEach((p) => { tally[p.id] = 0; });
-    Object.values(game.votes || {}).forEach((vote) => {
-      if (vote === '__no_imposter__') return;
-      if (Array.isArray(vote)) {
-        vote.forEach((id) => { if (tally[id] !== undefined) tally[id]++; });
+    const sendResult = (result) => { socket.emit('reveal-result', result); };
+    try {
+      console.log('[reveal-imposter] received', { gameId, socketId: socket.id });
+      const game = games.get(gameId);
+      if (!game) {
+        socket.emit('reveal-error', { message: 'Game not found.' });
+        sendResult({ ok: false, error: 'Game not found.' });
+        return;
       }
-    });
-
-    // Highest vote count = voted out (first in case of tie)
-    let votedPlayerId = null;
-    let maxVotes = 0;
-    for (const [id, count] of Object.entries(tally)) {
-      if (count > maxVotes) {
-        maxVotes = count;
-        votedPlayerId = id;
+      if (game.hostId !== socket.id) {
+        const hostLeft = !game.players.some((p) => p.id === game.hostId);
+        if (hostLeft && game.players.some((p) => p.id === socket.id)) {
+          game.hostId = socket.id;
+        } else {
+          socket.emit('reveal-error', { message: 'Only the host can reveal.' });
+          sendResult({ ok: false, error: 'Only the host can reveal.' });
+          return;
+        }
       }
-    }
-    const votedWasImposter = votedPlayerId ? round.imposterIds.includes(votedPlayerId) : false;
+      if (game.status !== 'playing' || game.votePhase !== 'voting') {
+        socket.emit('reveal-error', { message: 'Cannot reveal right now.' });
+        sendResult({ ok: false, error: 'Cannot reveal right now.' });
+        return;
+      }
 
-    if (round.roundVariant !== 'no_imposter') {
-      game.players.forEach((p) => {
-        if (p.userId) {
-          const wasImposter = round.imposterIds.includes(p.id);
-          const won = wasImposter ? !votedWasImposter : votedWasImposter;
-          db.recordRoundResult(p.userId, wasImposter, won);
+      const round = game.currentRound;
+      const totalPlayers = game.players.length;
+      const votedCount = game.players.filter((p) => game.votes?.[p.id] !== undefined).length;
+      if (votedCount < totalPlayers) {
+        console.log('[reveal-imposter] rejected: waiting for votes', { votedCount, totalPlayers });
+        socket.emit('reveal-error', { message: `Waiting for votes (${votedCount}/${totalPlayers}).` });
+        sendResult({ ok: false, error: `Waiting for votes (${votedCount}/${totalPlayers}).` });
+        return;
+      }
+
+      console.log('[reveal-imposter] success');
+      const tally = {};
+      game.players.forEach((p) => { tally[p.id] = 0; });
+      Object.values(game.votes || {}).forEach((vote) => {
+        if (vote === '__no_imposter__') return;
+        if (Array.isArray(vote)) {
+          vote.forEach((id) => { if (tally[id] !== undefined) tally[id]++; });
         }
       });
+
+      let votedPlayerId = null;
+      let maxVotes = 0;
+      for (const [id, count] of Object.entries(tally)) {
+        if (count > maxVotes) {
+          maxVotes = count;
+          votedPlayerId = id;
+        }
+      }
+      const votedWasImposter = votedPlayerId ? round.imposterIds.includes(votedPlayerId) : false;
+
+      if (round.roundVariant !== 'no_imposter') {
+        game.players.forEach((p) => {
+          if (p.userId) {
+            const wasImposter = round.imposterIds.includes(p.id);
+            const won = wasImposter ? !votedWasImposter : votedWasImposter;
+            db.recordRoundResult(p.userId, wasImposter, won);
+          }
+        });
+      }
+
+      game.votePhase = 'revealed';
+
+      const imposterNames = round.imposterIds
+        .map((id) => game.players.find((p) => p.id === id)?.name)
+        .filter(Boolean);
+      const votedPlayerName = votedPlayerId
+        ? game.players.find((p) => p.id === votedPlayerId)?.name
+        : null;
+
+      const payload = {
+        imposterIds: round.imposterIds,
+        imposterNames,
+        votedPlayerId,
+        votedPlayerName,
+        wasImposter: votedWasImposter,
+        teamWon: votedWasImposter,
+        category: round.category,
+        word: round.word,
+        noImposterRound: round.roundVariant === 'no_imposter',
+      };
+      sendResult({ ok: true, ...payload });
+      io.to(game.code).emit('imposter-revealed', payload);
+      socket.emit('imposter-revealed', payload);
+    } catch (err) {
+      console.error('[reveal-imposter] error:', err);
+      socket.emit('reveal-error', { message: 'Something went wrong.' });
+      sendResult({ ok: false, error: 'Something went wrong.' });
     }
-
-    game.votePhase = 'revealed';
-
-    const imposterNames = round.imposterIds
-      .map((id) => game.players.find((p) => p.id === id)?.name)
-      .filter(Boolean);
-    const votedPlayerName = votedPlayerId
-      ? game.players.find((p) => p.id === votedPlayerId)?.name
-      : null;
-
-    io.to(game.code).emit('imposter-revealed', {
-      imposterIds: round.imposterIds,
-      imposterNames,
-      votedPlayerId,
-      votedPlayerName,
-      wasImposter: votedWasImposter,
-      teamWon: votedWasImposter,
-    });
   });
 
   socket.on('record-round-result', ({ gameId, votedPlayerId }) => {
@@ -285,19 +425,25 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    // Clean up if host leaves or game becomes empty
     for (const [gameId, game] of games) {
       const idx = game.players.findIndex((p) => p.id === socket.id);
       if (idx >= 0) {
-        game.players.splice(idx, 1);
-        io.to(game.code).emit('player-left', { players: game.players });
-        if (game.players.length === 0) {
-          roomCodes.delete(game.code);
-          games.delete(gameId);
-        } else if (game.hostId === socket.id) {
-          game.hostId = game.players[0].id;
-          io.to(game.code).emit('new-host', { hostId: game.hostId });
-        }
+        // Grace period: allow rejoin within 60s before removing (fixes vote count / reveal)
+        const tid = setTimeout(() => {
+          disconnectTimeouts.delete(socket.id);
+          const i = game.players.findIndex((p) => p.id === socket.id);
+          if (i < 0) return; // Already rejoined and had id updated
+          game.players.splice(i, 1);
+          io.to(game.code).emit('player-left', { players: game.players });
+          if (game.players.length === 0) {
+            roomCodes.delete(game.code);
+            games.delete(gameId);
+          } else if (game.hostId === socket.id) {
+            game.hostId = game.players[0].id;
+            io.to(game.code).emit('new-host', { hostId: game.hostId });
+          }
+        }, 60000);
+        disconnectTimeouts.set(socket.id, tid);
         break;
       }
     }

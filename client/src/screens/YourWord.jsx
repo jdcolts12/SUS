@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { api } from '../api';
 
 function YourWord({
   word,
@@ -17,17 +18,50 @@ function YourWord({
   revealData,
   onStartVote,
   onSubmitVote,
-  onRevealImposter,
+  socket,
+  gameId,
+  gameCode,
+  playerName,
+  apiUrl,
+  onRevealError,
+  onRevealSuccess,
+  error,
+  onClearError,
 }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [noImposterSelected, setNoImposterSelected] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [showRevealPopup, setShowRevealPopup] = useState(true);
+  const [isRevealing, setIsRevealing] = useState(false);
+  const revealLastFired = useRef(0);
+  const revealTimeoutRef = useRef(null);
+  const revealRetryRef = useRef(null);
+  const revealDoneRef = useRef(false);
+  const retryIdsRef = useRef([]);
 
   useEffect(() => {
     setSelectedIds([]);
     setNoImposterSelected(false);
     setHasSubmitted(false);
   }, [votePhase, word]);
+
+  useEffect(() => {
+    if (votePhase === 'revealed' && revealData) {
+      revealDoneRef.current = true;
+      if (revealTimeoutRef.current) {
+        clearTimeout(revealTimeoutRef.current);
+        revealTimeoutRef.current = null;
+      }
+      if (revealRetryRef.current) {
+        clearTimeout(revealRetryRef.current);
+        revealRetryRef.current = null;
+      }
+      retryIdsRef.current.forEach(clearTimeout);
+      retryIdsRef.current = [];
+      setShowRevealPopup(true);
+      setIsRevealing(false);
+    }
+  }, [revealData, votePhase]);
 
   const togglePlayer = (id) => {
     if (hasSubmitted) return;
@@ -56,9 +90,6 @@ function YourWord({
   };
 
   const getHint = () => {
-    if (roundVariant === 'no_imposter') {
-      return "Everyone has the same word! Describe it together—no one to catch.";
-    }
     if (isImposter) {
       return roundVariant === 'two_imposters'
         ? "You're one of 2 imposters! You know the category but not the word. Blend in—you have an ally!"
@@ -78,29 +109,169 @@ function YourWord({
   const otherPlayers = players.filter((p) => p.id !== playerId);
   const everyoneVoted = votedCount >= totalPlayers && totalPlayers > 0;
 
+  const handleRevealImposter = () => {
+    if (isRevealing) return;
+    const now = Date.now();
+    if (now - revealLastFired.current < 300) return;
+    revealLastFired.current = now;
+    if (!gameId || !gameCode || !playerName) {
+      onRevealError?.('Missing game info. Go back to lobby and rejoin.');
+      return;
+    }
+    setIsRevealing(true);
+    revealDoneRef.current = false;
+
+    const clearAll = () => {
+      if (revealTimeoutRef.current) {
+        clearTimeout(revealTimeoutRef.current);
+        revealTimeoutRef.current = null;
+      }
+      if (revealRetryRef.current) {
+        clearTimeout(revealRetryRef.current);
+        revealRetryRef.current = null;
+      }
+      retryIdsRef.current.forEach(clearTimeout);
+      retryIdsRef.current = [];
+    };
+
+    const handleResult = (response) => {
+      if (revealDoneRef.current) return;
+      revealDoneRef.current = true;
+      clearAll();
+      setIsRevealing(false);
+      if (response?.error) {
+        onRevealError?.(response.error);
+      } else if (response?.ok || response?.imposterNames !== undefined || response?.category !== undefined || response?.noImposterRound !== undefined) {
+        onClearError?.();
+        const { ok, error: _, ...payload } = response;
+        onRevealSuccess?.(payload);
+      }
+    };
+
+    socket?.once('reveal-result', handleResult);
+    socket?.once('imposter-revealed', (data) => handleResult({ ok: true, ...data }));
+    if (socket?.connected) socket.emit('reveal-imposter', { gameId });
+
+    const tryHttp = () => {
+      if (revealDoneRef.current) return;
+      api.revealImposter(gameId, gameCode, playerName)
+        .then(handleResult)
+        .catch((err) => {
+          if (revealDoneRef.current) return;
+          clearAll();
+          setIsRevealing(false);
+          onRevealError?.(err?.message || 'Reveal failed. Tap Cancel and try again.');
+        });
+    };
+
+    tryHttp();
+    [5000, 11000, 17000].forEach((ms) => {
+      retryIdsRef.current.push(setTimeout(() => {
+        if (revealDoneRef.current) return;
+        tryHttp();
+      }, ms));
+    });
+    revealTimeoutRef.current = setTimeout(() => {
+      if (revealDoneRef.current) return;
+      clearAll();
+      setIsRevealing(false);
+      onRevealError?.('Server slow to respond. Tap Cancel, wait 10 seconds, then try again.');
+    }, 28000);
+  };
+
   return (
     <div className="word">
-      {votePhase === 'revealed' && revealData ? (
-        <div className="word__reveal">
-          <h2 className="word__reveal-title">The Imposter{revealData.imposterNames?.length > 1 ? 's' : ''} was...</h2>
-          <p className="word__reveal-names">
-            {revealData.imposterNames?.join(' & ') || 'Unknown'}
-          </p>
-          {revealData.votedPlayerName && (
-            <p className="word__reveal-voted">
-              You voted out: {revealData.votedPlayerName}
-            </p>
+      {error && (
+        <p className="word__error" role="alert">
+          {error}
+          {onClearError && (
+            <button type="button" className="word__error-dismiss" onClick={onClearError} aria-label="Dismiss">
+              ✕
+            </button>
           )}
-          <p className={`word__reveal-result ${revealData.teamWon ? 'word__reveal-result--win' : 'word__reveal-result--loss'}`}>
-            {revealData.teamWon ? 'Team wins!' : 'Imposter wins!'}
-          </p>
-        </div>
+        </p>
+      )}
+      {votePhase === 'revealed' && revealData ? (
+        <>
+          {showRevealPopup ? (
+            <div className="word__popup-overlay" role="dialog" aria-modal="true">
+              <div className="word__popup">
+                {revealData.noImposterRound ? (
+                  <>
+                    <h2 className="word__reveal-title">There was no imposter!</h2>
+                    <p className="word__reveal-names">
+                      Everyone had the same word.
+                    </p>
+                    {revealData.votedPlayerName && (
+                      <p className="word__reveal-voted">
+                        The group voted out: {revealData.votedPlayerName}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <h2 className="word__reveal-title">
+                      {revealData.imposterNames?.length > 1
+                        ? 'The imposters were'
+                        : 'The imposter was'}
+                    </h2>
+                    <p className="word__reveal-names">
+                      {revealData.imposterNames?.join(' & ') || 'Unknown'}
+                    </p>
+                    {revealData.votedPlayerName && (
+                      <p className="word__reveal-voted">
+                        You voted out: {revealData.votedPlayerName}
+                      </p>
+                    )}
+                    <p className={`word__reveal-result ${revealData.teamWon ? 'word__reveal-result--win' : 'word__reveal-result--loss'}`}>
+                      {revealData.teamWon
+                        ? 'Crew wins!'
+                        : `${revealData.imposterNames?.join(' & ') || 'The imposters'} win!`}
+                    </p>
+                  </>
+                )}
+                <button className="btn btn--primary" onClick={() => setShowRevealPopup(false)}>
+                  Continue
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="word__recap">
+              <h2 className="word__recap-title">Game Recap</h2>
+              <div className="word__recap-stats">
+                {revealData.noImposterRound ? (
+                  <p className="word__recap-winner word__recap-winner--crew">
+                    There was no imposter!
+                  </p>
+                ) : (
+                  <p className={`word__recap-winner ${revealData.teamWon ? 'word__recap-winner--crew' : 'word__recap-winner--imposter'}`}>
+                    {revealData.teamWon
+                      ? 'Crew wins!'
+                      : `${revealData.imposterNames?.join(' & ') || 'The imposters'} win!`}
+                  </p>
+                )}
+                {revealData.category && (
+                  <p className="word__recap-row">
+                    <span className="word__recap-label">Category</span>
+                    <span className="word__recap-value">{revealData.category}</span>
+                  </p>
+                )}
+                {revealData.word && (
+                  <p className="word__recap-row">
+                    <span className="word__recap-label">Word</span>
+                    <span className="word__recap-value">{revealData.word}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <>
           <div className="word__turn">
             {turnOrderText} of {totalPlayers}
           </div>
-          <div className={`word__card ${isImposter ? 'word__card--imposter' : ''} ${roundVariant === 'no_imposter' ? 'word__card--no-imposter' : ''}`}>
+          <div className={`word__card ${isImposter ? 'word__card--imposter' : ''}`}>
             <div className="word__label">{getLabel()}</div>
             <div className="word__value">{word}</div>
           </div>
@@ -109,24 +280,54 @@ function YourWord({
       )}
 
       {/* Host: Start voting (before vote phase) */}
-      {isHost && roundVariant !== 'no_imposter' && !votePhase && (
+      {isHost && !votePhase && (
         <button className="btn btn--primary" onClick={onStartVote}>
           Vote on Imposter
         </button>
       )}
 
       {/* All players: Voting UI */}
-      {votePhase === 'voting' && roundVariant !== 'no_imposter' && (
+      {votePhase === 'voting' && (
         <div className="word__vote">
           <h4>Who do you think is the imposter?</h4>
           <p className="word__vote-hint">Tap multiple names or &quot;No imposter&quot;</p>
           {hasSubmitted ? (
             <div className="word__vote-waiting">
               <p>Waiting for others... {votedCount}/{totalPlayers} voted</p>
-              {isHost && everyoneVoted && (
-                <button className="btn btn--primary" onClick={onRevealImposter}>
-                  Reveal Imposter
-                </button>
+              {isHost && (
+                <div className="word__reveal-row">
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={handleRevealImposter}
+                    disabled={isRevealing}
+                  >
+                    {isRevealing ? 'Revealing…' : everyoneVoted ? 'Reveal Imposter' : `Reveal (${votedCount}/${totalPlayers})`}
+                  </button>
+                  {isRevealing && (
+                    <button
+                      type="button"
+                      className="btn btn--ghost"
+                      onClick={() => {
+                        revealDoneRef.current = true;
+                        if (revealTimeoutRef.current) {
+                          clearTimeout(revealTimeoutRef.current);
+                          revealTimeoutRef.current = null;
+                        }
+                        if (revealRetryRef.current) {
+                          clearTimeout(revealRetryRef.current);
+                          revealRetryRef.current = null;
+                        }
+                        retryIdsRef.current.forEach(clearTimeout);
+                        retryIdsRef.current = [];
+                        setIsRevealing(false);
+                        onClearError?.();
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ) : (
@@ -162,12 +363,12 @@ function YourWord({
       )}
 
       <div className="word__actions">
-        {isHost && (votePhase === 'revealed' || roundVariant === 'no_imposter') && (
-          <button className="btn btn--secondary" onClick={onNewRound}>
+        {isHost && votePhase === 'revealed' && (
+          <button type="button" className="btn btn--secondary" onClick={onNewRound}>
             New Round
           </button>
         )}
-        <button className="btn btn--ghost" onClick={onBackToLobby}>
+        <button type="button" className="btn btn--ghost" onClick={onBackToLobby}>
           Back to Lobby
         </button>
       </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import ConnectionHelp from './ConnectionHelp';
 
-function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onSignUp, onSignIn, error, connecting = false }) {
+function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onSignUp, onSignIn, error, connecting = false, onRetryConnection, serverHealthUrl }) {
   const [mode, setMode] = useState(null);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -129,10 +129,37 @@ function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onSignUp,
       )}
 
       {error && (
-        <>
+        <div className="home__error-block">
           <p className="home__error">{error}</p>
+          {error.includes("Can't reach server") && onRetryConnection && (
+            <>
+              {serverHealthUrl && (
+                <a
+                  href={serverHealthUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="home__error-link"
+                >
+                  Test server in new tab →
+                </a>
+              )}
+              <div
+                className={`home__retry-btn ${connecting ? 'home__retry-btn--disabled' : ''}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => !connecting && onRetryConnection()}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  if (!connecting) onRetryConnection();
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && !connecting && onRetryConnection()}
+              >
+                {connecting ? 'Waking server…' : 'TAP TO RETRY'}
+              </div>
+            </>
+          )}
           <ConnectionHelp />
-        </>
+        </div>
       )}
 
       <p className="home__hint">
