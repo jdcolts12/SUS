@@ -48,7 +48,7 @@ function EditProfile({ userId, onSaved, onBack }) {
     setError('');
     try {
       await api.updateUser(userId, { username: username.trim(), profile_pic: profilePic || null, bg_color: bgColor });
-      onSaved?.();
+      onSaved?.(username.trim());
     } catch (e) {
       setError(e.message);
     } finally {

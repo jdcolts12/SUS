@@ -16,9 +16,9 @@ function SignIn({ onSignedIn, onBack, onSignUp }) {
     setLoading(true);
     setError('');
     try {
-      const { userId } = await api.signIn(username.trim(), password);
+      const { userId, username: name } = await api.signIn(username.trim(), password);
       localStorage.setItem('userId', userId);
-      onSignedIn?.(userId);
+      onSignedIn?.(userId, name);
     } catch (e) {
       setError(e.message);
     } finally {

@@ -18,6 +18,9 @@ function Profile({ userId, onEditProfile, onFriends, onBack, onSignOut }) {
 
   return (
     <div className="profile" style={{ '--profile-bg': user.bg_color || '#1a1a2e' }}>
+      <div className="profile__top">
+        <button className="btn btn--ghost" onClick={onBack}>← Back</button>
+      </div>
       <div className="profile__header">
         <div className="profile__avatar" style={{ backgroundColor: user.bg_color }}>
           {user.profile_pic ? (

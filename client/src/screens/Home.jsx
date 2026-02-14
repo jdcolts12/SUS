@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import ConnectionHelp from './ConnectionHelp';
 
-function Home({ userId, onCreateGame, onJoinGame, onProfile, onSignUp, onSignIn, error, connecting = false }) {
+function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onSignUp, onSignIn, error, connecting = false }) {
   const [mode, setMode] = useState(null);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -19,23 +19,27 @@ function Home({ userId, onCreateGame, onJoinGame, onProfile, onSignUp, onSignIn,
   return (
     <div className="home">
       <div className="home__header">
-        {userId && (
-          <button className="home__profile-btn btn btn--secondary" onClick={onProfile}>
-            Profile
-          </button>
+        {userId ? (
+          <>
+            <span className="home__logged-in">Hi, {username || 'Player'}!</span>
+            <button className="home__profile-btn btn btn--secondary" onClick={onProfile}>
+              Profile
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="home__profile-btn btn btn--secondary" onClick={onSignIn}>Sign in</button>
+            <button className="home__profile-btn btn btn--primary" onClick={onSignUp}>Create account</button>
+          </>
         )}
-        <button className="home__profile-btn btn btn--secondary" onClick={onSignIn}>
-          Sign in
-        </button>
-        <button className="home__profile-btn btn btn--primary" onClick={onSignUp}>
-          Create account
-        </button>
       </div>
 
-      <div className="home__auth-strip">
-        <button className="btn btn--primary" onClick={onSignUp}>Create account</button>
-        <button className="btn btn--secondary" onClick={onSignIn}>Sign in</button>
-      </div>
+      {!userId && (
+        <div className="home__auth-strip">
+          <button className="btn btn--primary" onClick={onSignUp}>Create account</button>
+          <button className="btn btn--secondary" onClick={onSignIn}>Sign in</button>
+        </div>
+      )}
 
       <div className="home__hero">
         <h1 className="home__title">SUS</h1>

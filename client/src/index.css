@@ -477,6 +477,10 @@ button {
   align-items: center;
   background: var(--profile-bg, var(--surface));
 }
+.profile__top {
+  align-self: flex-start;
+  margin-bottom: 1rem;
+}
 .profile__header {
   text-align: center;
   margin-bottom: 2rem;
@@ -746,6 +750,11 @@ button {
 .home__profile-btn {
   font-size: 0.9rem;
   padding: 0.5rem 1rem;
+}
+.home__logged-in {
+  font-size: 1rem;
+  color: var(--text);
+  margin-right: auto;
 }
 .home__auth-buttons .btn {
   width: 100%;

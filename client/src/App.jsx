@@ -8,25 +8,28 @@ import EditProfile from './screens/EditProfile';
 import Friends from './screens/Friends';
 import SignUp from './screens/SignUp';
 import SignIn from './screens/SignIn';
+import { api } from './api';
 
 // In dev: use same host as page (so phone at 192.168.x.x:5173 connects to 192.168.x.x:3001)
 // In prod: MUST set VITE_SOCKET_URL to your Railway server URL
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3001` : window.location.origin);
 
-const AUTH_VERSION = 'v2-password';
 function App() {
   const [screen, setScreen] = useState('home');
-  const [userId, setUserId] = useState(() => {
-    const stored = localStorage.getItem('userId');
-    const version = localStorage.getItem('authVersion');
-    if (stored && version !== AUTH_VERSION) {
-      localStorage.removeItem('userId');
-      localStorage.removeItem('authVersion');
-      return null;
-    }
-    return stored;
-  });
+  const [userId, setUserId] = useState(() => localStorage.getItem('userId'));
+  const [username, setUsername] = useState(() => localStorage.getItem('username'));
   const [socket, setSocket] = useState(null);
+
+  useEffect(() => {
+    if (userId && !username) {
+      api.getUser(userId).then((u) => {
+        if (u?.username) {
+          localStorage.setItem('username', u.username);
+          setUsername(u.username);
+        }
+      }).catch(() => {});
+    }
+  }, [userId, username]);
   const [gameState, setGameState] = useState({
     code: null,
     gameId: null,
@@ -214,7 +217,7 @@ function App() {
         onEditProfile={() => setScreen('edit-profile')}
         onFriends={() => setScreen('friends')}
         onBack={() => setScreen('home')}
-        onSignOut={() => { localStorage.removeItem('userId'); localStorage.removeItem('authVersion'); setUserId(null); setScreen('home'); }}
+        onSignOut={() => { localStorage.removeItem('userId'); localStorage.removeItem('username'); setUserId(null); setUsername(null); setScreen('home'); }}
       />
     );
   }
@@ -223,7 +226,13 @@ function App() {
     return (
       <EditProfile
         userId={userId}
-        onSaved={() => setScreen('profile')}
+        onSaved={(newUsername) => {
+          if (newUsername) {
+            localStorage.setItem('username', newUsername);
+            setUsername(newUsername);
+          }
+          setScreen('profile');
+        }}
         onBack={() => setScreen('profile')}
       />
     );
@@ -236,7 +245,7 @@ function App() {
   if (screen === 'signup') {
     return (
       <SignUp
-        onSignedUp={(id) => { localStorage.setItem('userId', id); localStorage.setItem('authVersion', AUTH_VERSION); setUserId(id); setScreen('home'); }}
+        onSignedUp={(id, name) => { localStorage.setItem('userId', id); localStorage.setItem('username', name || ''); setUserId(id); setUsername(name || ''); setScreen('home'); }}
         onBack={() => setScreen('home')}
         onSignIn={() => setScreen('signin')}
       />
@@ -246,7 +255,7 @@ function App() {
   if (screen === 'signin') {
     return (
       <SignIn
-        onSignedIn={(id) => { localStorage.setItem('userId', id); localStorage.setItem('authVersion', AUTH_VERSION); setUserId(id); setScreen('home'); }}
+        onSignedIn={(id, name) => { localStorage.setItem('userId', id); localStorage.setItem('username', name || ''); setUserId(id); setUsername(name || ''); setScreen('home'); }}
         onBack={() => setScreen('home')}
         onSignUp={() => setScreen('signup')}
       />
@@ -262,6 +271,7 @@ function App() {
         onProfile={() => setScreen('profile')}
         onSignUp={() => setScreen('signup')}
         onSignIn={() => setScreen('signin')}
+        username={username}
         error={error}
         connecting={connecting}
       />

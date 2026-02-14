@@ -21,9 +21,9 @@ function SignUp({ onSignedUp, onBack, onSignIn }) {
     setLoading(true);
     setError('');
     try {
-      const { userId } = await api.createUser(trimUser, password);
+      const { userId, username: name } = await api.createUser(trimUser, password);
       localStorage.setItem('userId', userId);
-      onSignedUp?.(userId);
+      onSignedUp?.(userId, name);
     } catch (e) {
       setError(e.message);
     } finally {
