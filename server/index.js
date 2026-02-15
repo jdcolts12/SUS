@@ -79,20 +79,24 @@ app.post('/api/reveal-imposter', (req, res) => {
     for (const [id, count] of Object.entries(tally)) {
       if (count > maxVotes) maxVotes = count;
     }
+    const imposterNames = round.imposterNames?.length ? round.imposterNames : (round.imposterIds || []).map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+    const isImposterByName = (id) => {
+      const name = game.players.find((p) => p.id === id)?.name;
+      return name && imposterNames.some((n) => (n || '').toLowerCase() === (name || '').toLowerCase());
+    };
     const tied = Object.entries(tally).filter(([, c]) => c === maxVotes && c > 0);
     if (tied.length === 1) {
       votedPlayerId = tied[0][0];
     } else if (tied.length > 1) {
-      const imposterInTie = tied.find(([id]) => round.imposterIds.includes(id));
-      if (imposterInTie) {
-        votedPlayerId = imposterInTie[0];
-      }
+      const imposterInTie = tied.find(([id]) => round.imposterIds.includes(id) || isImposterByName(id));
+      if (imposterInTie) votedPlayerId = imposterInTie[0];
     }
-    const votedWasImposter = votedPlayerId ? round.imposterIds.includes(votedPlayerId) : false;
+    const votedPlayerName = votedPlayerId ? game.players.find((p) => p.id === votedPlayerId)?.name : null;
+    const votedWasImposter = votedPlayerId ? (round.imposterIds.includes(votedPlayerId) || (votedPlayerName && imposterNames.some((n) => (n || '').toLowerCase() === (votedPlayerName || '').toLowerCase()))) : false;
     const voteTied = tied.length > 1;
     const teamWon = votedPlayerId
       ? votedWasImposter
-      : (voteTied && tied.some(([id]) => round.imposterIds.includes(id)))
+      : (voteTied && tied.some(([id]) => round.imposterIds.includes(id) || isImposterByName(id)))
         ? true
         : (round.roundVariant === 'no_imposter');
     if (round.roundVariant !== 'no_imposter') {
@@ -109,8 +113,6 @@ app.post('/api/reveal-imposter', (req, res) => {
       });
     }
     game.votePhase = 'revealed';
-    const imposterNames = round.imposterNames?.length ? round.imposterNames : (round.imposterIds || []).map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
-    const votedPlayerName = votedPlayerId ? game.players.find((p) => p.id === votedPlayerId)?.name : null;
     const payload = {
       imposterIds: round.imposterIds,
       imposterNames,
@@ -576,18 +578,24 @@ io.on('connection', (socket) => {
       for (const [id, count] of Object.entries(tally)) {
         if (count > maxVotes) maxVotes = count;
       }
+      const imposterNames = round.imposterNames?.length ? round.imposterNames : round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+      const isImposterByName = (id) => {
+        const name = game.players.find((p) => p.id === id)?.name;
+        return name && imposterNames.some((n) => (n || '').toLowerCase() === (name || '').toLowerCase());
+      };
       const tied = Object.entries(tally).filter(([, c]) => c === maxVotes && c > 0);
       if (tied.length === 1) {
         votedPlayerId = tied[0][0];
       } else if (tied.length > 1) {
-        const imposterInTie = tied.find(([id]) => round.imposterIds.includes(id));
+        const imposterInTie = tied.find(([id]) => round.imposterIds.includes(id) || isImposterByName(id));
         if (imposterInTie) votedPlayerId = imposterInTie[0];
       }
-      const votedWasImposter = votedPlayerId ? round.imposterIds.includes(votedPlayerId) : false;
+      const votedPlayerName = votedPlayerId ? game.players.find((p) => p.id === votedPlayerId)?.name : null;
+      const votedWasImposter = votedPlayerId ? (round.imposterIds.includes(votedPlayerId) || (votedPlayerName && imposterNames.some((n) => (n || '').toLowerCase() === (votedPlayerName || '').toLowerCase()))) : false;
       const voteTied = tied.length > 1;
       const teamWon = votedPlayerId
         ? votedWasImposter
-        : (voteTied && tied.some(([id]) => round.imposterIds.includes(id)))
+        : (voteTied && tied.some(([id]) => round.imposterIds.includes(id) || isImposterByName(id)))
           ? true
           : (round.roundVariant === 'no_imposter');
 
@@ -606,11 +614,6 @@ io.on('connection', (socket) => {
       }
 
       game.votePhase = 'revealed';
-
-      const imposterNames = round.imposterNames?.length ? round.imposterNames : round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
-      const votedPlayerName = votedPlayerId
-        ? game.players.find((p) => p.id === votedPlayerId)?.name
-        : null;
 
       const payload = {
         imposterIds: round.imposterIds,
