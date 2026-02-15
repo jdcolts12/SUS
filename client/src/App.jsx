@@ -292,6 +292,23 @@ function App() {
     });
   };
 
+  const clearStaleGameAndGoHome = (msg) => {
+    try {
+      sessionStorage.removeItem('sus_game');
+      sessionStorage.removeItem('sus_playerName');
+    } catch (_) {}
+    setGameState({ code: null, gameId: null, playerId: null, players: [], isHost: false });
+    setWordData(null);
+    setVotePhase(null);
+    setRevealData(null);
+    setPlayerName('');
+    setScreen('home');
+    const friendly = /player not found/i.test(msg || '')
+      ? 'Connection lost too long. Create or join a new game.'
+      : (msg || 'Game ended (server may have restarted). Create or join a new game.');
+    setError(friendly);
+  };
+
   const getGameCreds = () => {
     let gid = gameState.gameId;
     let gc = gameState.code;
@@ -306,7 +323,11 @@ function App() {
         if (!pn && savedName) pn = savedName;
       } catch (_) {}
     }
-    return { gameId: gid, code: gc, playerName: pn };
+    return {
+      gameId: gid,
+      code: gc ? String(gc).toUpperCase().trim() : gc,
+      playerName: pn ? String(pn).trim() : pn,
+    };
   };
 
   const startGame = () => {
@@ -332,7 +353,11 @@ function App() {
             setScreen('word');
           }
         })
-        .catch((err) => setError(err?.message || 'Start failed. Tap again.'));
+        .catch((err) => {
+          const msg = err?.message || 'Start failed. Tap again.';
+          if (/game not found|player not found/i.test(msg)) clearStaleGameAndGoHome(msg);
+          else setError(msg);
+        });
     } else {
       setError('Missing game info. Go back to lobby and rejoin.');
     }
@@ -360,7 +385,11 @@ function App() {
             setRevealData(null);
           }
         })
-        .catch((err) => setError(err?.message || 'New round failed. Tap again.'));
+        .catch((err) => {
+          const msg = err?.message || 'New round failed. Tap again.';
+          if (/game not found|player not found/i.test(msg)) clearStaleGameAndGoHome(msg);
+          else setError(msg);
+        });
     } else {
       setError('Missing game info. Go back to lobby and rejoin.');
     }
@@ -393,7 +422,9 @@ function App() {
     const handleFail = (err) => {
       if (done) return;
       setIsStartingVote(false);
-      setError(err?.message || 'Start vote failed. Tap again.');
+      const msg = err?.message || 'Start vote failed. Tap again.';
+      if (/game not found|player not found/i.test(msg)) clearStaleGameAndGoHome(msg);
+      else setError(msg);
     };
     setIsStartingVote(true);
     const url = (import.meta.env.VITE_SOCKET_URL || '').replace(/\/$/, '');
@@ -441,7 +472,9 @@ function App() {
       return api.submitVote(gid, gc, pn, noImposter ? [] : votedPlayerIds, !!noImposter, players)
         .then(() => { setError(''); return true; })
         .catch((err) => {
-          setError(err?.message || 'Vote failed. Tap Submit again.');
+          const msg = err?.message || 'Vote failed. Tap Submit again.';
+          if (/game not found|player not found/i.test(msg)) clearStaleGameAndGoHome(msg);
+          else setError(msg);
           return Promise.reject(err);
         });
     }
@@ -576,7 +609,10 @@ function App() {
         gameCode={gameState.code}
         playerName={playerName}
         apiUrl={API_URL}
-        onRevealError={setError}
+        onRevealError={(msg) => {
+          if (/game not found|player not found/i.test(msg || '')) clearStaleGameAndGoHome(msg);
+          else setError(msg || 'Reveal failed. Tap Cancel and try again.');
+        }}
         onRevealSuccess={(data) => {
           setError('');
           setVotePhase('revealed');

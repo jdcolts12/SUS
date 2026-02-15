@@ -262,7 +262,7 @@ function YourWord({
                         : 'The imposter was'}
                     </h2>
                     <p className="word__reveal-names">
-                      {revealData.imposterNames?.join(' & ') || 'Unknown'}
+                      {revealData.imposterNames?.join(' & ') || 'Unable to determine'}
                     </p>
                     {revealData.votedPlayerName && (
                       <p className="word__reveal-voted">
@@ -272,7 +272,11 @@ function YourWord({
                     <p className={`word__reveal-result ${revealData.teamWon ? 'word__reveal-result--win' : 'word__reveal-result--loss'}`}>
                       {revealData.teamWon
                         ? 'Crew wins!'
-                        : `${revealData.imposterNames?.join(' & ') || 'The imposters'} win!`}
+                        : (() => {
+                            const names = revealData.imposterNames?.filter(Boolean) || [];
+                            const text = names.join(' & ') || 'The imposters';
+                            return names.length === 1 ? `${text} wins!` : `${text} win!`;
+                          })()}
                     </p>
                   </>
                 )}
@@ -293,7 +297,11 @@ function YourWord({
                   <p className={`word__recap-winner ${revealData.teamWon ? 'word__recap-winner--crew' : 'word__recap-winner--imposter'}`}>
                     {revealData.teamWon
                       ? 'Crew wins!'
-                      : `${revealData.imposterNames?.join(' & ') || 'The imposters'} win!`}
+                      : (() => {
+                          const names = revealData.imposterNames?.filter(Boolean) || [];
+                          const text = names.join(' & ') || 'The imposters';
+                          return names.length === 1 ? `${text} wins!` : `${text} win!`;
+                        })()}
                   </p>
                 )}
                 {revealData.category && (

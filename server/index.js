@@ -53,7 +53,7 @@ app.post('/api/reveal-imposter', (req, res) => {
     if (!game || game.code !== String(code).toUpperCase()) {
       return res.status(404).json({ ok: false, error: 'Game not found.' });
     }
-    const player = game.players.find((p) => p.name.toLowerCase() === String(playerName).toLowerCase());
+    const player = game.players.find((p) => (p.name || '').toLowerCase().trim() === String(playerName || '').toLowerCase().trim());
     if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
     if (game.hostId !== player.id) {
       return res.status(403).json({ ok: false, error: 'Only the host can reveal.' });
@@ -94,7 +94,7 @@ app.post('/api/reveal-imposter', (req, res) => {
       });
     }
     game.votePhase = 'revealed';
-    const imposterNames = (round.imposterIds || []).map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+    const imposterNames = round.imposterNames?.length ? round.imposterNames : (round.imposterIds || []).map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
     const votedPlayerName = votedPlayerId ? game.players.find((p) => p.id === votedPlayerId)?.name : null;
     const payload = {
       imposterIds: round.imposterIds,
@@ -127,7 +127,7 @@ app.post('/api/submit-vote', (req, res) => {
     if (!game || game.code !== String(code).toUpperCase()) {
       return res.status(404).json({ ok: false, error: 'Game not found.' });
     }
-    const player = game.players.find((p) => p.name.toLowerCase() === String(playerName).toLowerCase());
+    const player = game.players.find((p) => (p.name || '').toLowerCase().trim() === String(playerName || '').toLowerCase().trim());
     if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
     if (game.status !== 'playing' || game.votePhase !== 'voting') {
       return res.status(400).json({ ok: false, error: 'Voting is not open.' });
@@ -170,7 +170,7 @@ app.post('/api/start-game', (req, res) => {
     if (!game || game.code !== String(code).toUpperCase()) {
       return res.status(404).json({ ok: false, error: 'Game not found.' });
     }
-    const player = game.players.find((p) => p.name.toLowerCase() === String(playerName).toLowerCase());
+    const player = game.players.find((p) => (p.name || '').toLowerCase().trim() === String(playerName || '').toLowerCase().trim());
     if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
     if (game.hostId !== player.id) return res.status(403).json({ ok: false, error: 'Only the host can start.' });
     if (game.players.length < 4) {
@@ -178,6 +178,7 @@ app.post('/api/start-game', (req, res) => {
     }
     const playerIds = game.players.map((p) => p.id);
     const round = createRound(playerIds);
+    round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
     game.currentRound = round;
     game.status = 'playing';
     game.players.forEach((p) => {
@@ -222,7 +223,7 @@ app.post('/api/new-round', (req, res) => {
     if (!game || game.code !== String(code).toUpperCase()) {
       return res.status(404).json({ ok: false, error: 'Game not found.' });
     }
-    const player = game.players.find((p) => p.name.toLowerCase() === String(playerName).toLowerCase());
+    const player = game.players.find((p) => (p.name || '').toLowerCase().trim() === String(playerName || '').toLowerCase().trim());
     if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
     if (game.hostId !== player.id || game.status !== 'playing') {
       return res.status(403).json({ ok: false, error: 'Only the host can start a new round.' });
@@ -231,6 +232,7 @@ app.post('/api/new-round', (req, res) => {
     game.votes = null;
     const playerIds = game.players.map((p) => p.id);
     const round = createRound(playerIds);
+    round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
     game.currentRound = round;
     game.players.forEach((p) => {
       const a = round.assignments[p.id];
@@ -270,7 +272,7 @@ app.post('/api/start-vote', (req, res) => {
     if (!game || game.code !== String(code).toUpperCase()) {
       return res.status(404).json({ ok: false, error: 'Game not found.' });
     }
-    const player = game.players.find((p) => p.name.toLowerCase() === String(playerName).toLowerCase());
+    const player = game.players.find((p) => (p.name || '').toLowerCase().trim() === String(playerName || '').toLowerCase().trim());
     if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
     if (game.hostId !== player.id || game.status !== 'playing' || !game.currentRound) {
       return res.status(403).json({ ok: false, error: 'Only the host can start voting.' });
@@ -331,7 +333,7 @@ io.on('connection', (socket) => {
       if (typeof ack === 'function') ack({ ok: false, error: 'Game not found.' });
       return;
     }
-    const player = game.players.find((p) => p.name.toLowerCase() === (playerName || '').toLowerCase());
+    const player = game.players.find((p) => (p.name || '').toLowerCase().trim() === String(playerName || '').toLowerCase().trim());
     if (!player) {
       if (typeof ack === 'function') ack({ ok: false, error: 'Player not found.' });
       return;
@@ -416,6 +418,7 @@ io.on('connection', (socket) => {
     }
     const playerIds = game.players.map((p) => p.id);
     const round = createRound(playerIds);
+    round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
     game.currentRound = round;
     game.status = 'playing';
 
@@ -452,6 +455,7 @@ io.on('connection', (socket) => {
     game.votes = null;
     const playerIds = game.players.map((p) => p.id);
     const round = createRound(playerIds);
+    round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
     game.currentRound = round;
 
     game.players.forEach((player) => {
@@ -577,9 +581,7 @@ io.on('connection', (socket) => {
 
       game.votePhase = 'revealed';
 
-      const imposterNames = round.imposterIds
-        .map((id) => game.players.find((p) => p.id === id)?.name)
-        .filter(Boolean);
+      const imposterNames = round.imposterNames?.length ? round.imposterNames : round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
       const votedPlayerName = votedPlayerId
         ? game.players.find((p) => p.id === votedPlayerId)?.name
         : null;
@@ -636,22 +638,24 @@ io.on('connection', (socket) => {
     for (const [gameId, game] of games) {
       const idx = game.players.findIndex((p) => p.id === socket.id);
       if (idx >= 0) {
-        // Grace period: allow rejoin within 2 min before removing
-        const tid = setTimeout(() => {
-          disconnectTimeouts.delete(socket.id);
-          const i = game.players.findIndex((p) => p.id === socket.id);
-          if (i < 0) return; // Already rejoined and had id updated
-          game.players.splice(i, 1);
-          io.to(game.code).emit('player-left', { players: game.players });
-          if (game.players.length === 0) {
-            roomCodes.delete(game.code);
-            games.delete(gameId);
-          } else if (game.hostId === socket.id) {
-            game.hostId = game.players[0].id;
-            io.to(game.code).emit('new-host', { hostId: game.hostId });
-          }
-        }, 120000);
-        disconnectTimeouts.set(socket.id, tid);
+        if (game.status !== 'playing') {
+          // Lobby only: remove after 45 min grace
+          const tid = setTimeout(() => {
+            disconnectTimeouts.delete(socket.id);
+            const i = game.players.findIndex((p) => p.id === socket.id);
+            if (i < 0) return;
+            game.players.splice(i, 1);
+            io.to(game.code).emit('player-left', { players: game.players });
+            if (game.players.length === 0) {
+              roomCodes.delete(game.code);
+              games.delete(gameId);
+            } else if (game.hostId === socket.id) {
+              game.hostId = game.players[0].id;
+              io.to(game.code).emit('new-host', { hostId: game.hostId });
+            }
+          }, 45 * 60 * 1000);
+          disconnectTimeouts.set(socket.id, tid);
+        }
         break;
       }
     }
