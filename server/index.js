@@ -77,9 +77,24 @@ app.post('/api/reveal-imposter', (req, res) => {
     let votedPlayerId = null;
     let maxVotes = 0;
     for (const [id, count] of Object.entries(tally)) {
-      if (count > maxVotes) { maxVotes = count; votedPlayerId = id; }
+      if (count > maxVotes) maxVotes = count;
+    }
+    const tied = Object.entries(tally).filter(([, c]) => c === maxVotes && c > 0);
+    if (tied.length === 1) {
+      votedPlayerId = tied[0][0];
+    } else if (tied.length > 1) {
+      const imposterInTie = tied.find(([id]) => round.imposterIds.includes(id));
+      if (imposterInTie) {
+        votedPlayerId = imposterInTie[0];
+      }
     }
     const votedWasImposter = votedPlayerId ? round.imposterIds.includes(votedPlayerId) : false;
+    const voteTied = tied.length > 1;
+    const teamWon = votedPlayerId
+      ? votedWasImposter
+      : (voteTied && tied.some(([id]) => round.imposterIds.includes(id)))
+        ? true
+        : (round.roundVariant === 'no_imposter');
     if (round.roundVariant !== 'no_imposter') {
       game.players.forEach((p) => {
         if (p.userId) {
@@ -101,8 +116,9 @@ app.post('/api/reveal-imposter', (req, res) => {
       imposterNames,
       votedPlayerId,
       votedPlayerName,
+      voteTied,
       wasImposter: votedWasImposter,
-      teamWon: votedWasImposter,
+      teamWon,
       category: round.category,
       word: round.word,
       noImposterRound: round.roundVariant === 'no_imposter',
@@ -558,12 +574,22 @@ io.on('connection', (socket) => {
       let votedPlayerId = null;
       let maxVotes = 0;
       for (const [id, count] of Object.entries(tally)) {
-        if (count > maxVotes) {
-          maxVotes = count;
-          votedPlayerId = id;
-        }
+        if (count > maxVotes) maxVotes = count;
+      }
+      const tied = Object.entries(tally).filter(([, c]) => c === maxVotes && c > 0);
+      if (tied.length === 1) {
+        votedPlayerId = tied[0][0];
+      } else if (tied.length > 1) {
+        const imposterInTie = tied.find(([id]) => round.imposterIds.includes(id));
+        if (imposterInTie) votedPlayerId = imposterInTie[0];
       }
       const votedWasImposter = votedPlayerId ? round.imposterIds.includes(votedPlayerId) : false;
+      const voteTied = tied.length > 1;
+      const teamWon = votedPlayerId
+        ? votedWasImposter
+        : (voteTied && tied.some(([id]) => round.imposterIds.includes(id)))
+          ? true
+          : (round.roundVariant === 'no_imposter');
 
       if (round.roundVariant !== 'no_imposter') {
         game.players.forEach((p) => {
@@ -591,8 +617,9 @@ io.on('connection', (socket) => {
         imposterNames,
         votedPlayerId,
         votedPlayerName,
+        voteTied,
         wasImposter: votedWasImposter,
-        teamWon: votedWasImposter,
+        teamWon,
         category: round.category,
         word: round.word,
         noImposterRound: round.roundVariant === 'no_imposter',

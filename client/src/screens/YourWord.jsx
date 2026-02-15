@@ -272,11 +272,13 @@ function YourWord({
                     <p className={`word__reveal-result ${revealData.teamWon ? 'word__reveal-result--win' : 'word__reveal-result--loss'}`}>
                       {revealData.teamWon
                         ? 'Crew wins!'
-                        : (() => {
-                            const names = revealData.imposterNames?.filter(Boolean) || [];
-                            const text = names.join(' & ') || 'The imposters';
-                            return names.length === 1 ? `${text} wins!` : `${text} win!`;
-                          })()}
+                        : revealData.voteTied
+                          ? (revealData.teamWon ? 'Tie! Crew wins!' : 'Tie! Imposters win!')
+                          : (() => {
+                              const names = revealData.imposterNames?.filter(Boolean) || [];
+                              const text = names.join(' & ') || 'The imposters';
+                              return names.length === 1 ? `${text} wins!` : `${text} win!`;
+                            })()}
                     </p>
                   </>
                 )}
@@ -291,17 +293,19 @@ function YourWord({
               <div className="word__recap-stats">
                 {revealData.noImposterRound ? (
                   <p className="word__recap-winner word__recap-winner--crew">
-                    There was no imposter!
+                    Crew wins! (No imposter this round)
                   </p>
                 ) : (
                   <p className={`word__recap-winner ${revealData.teamWon ? 'word__recap-winner--crew' : 'word__recap-winner--imposter'}`}>
                     {revealData.teamWon
                       ? 'Crew wins!'
-                      : (() => {
-                          const names = revealData.imposterNames?.filter(Boolean) || [];
-                          const text = names.join(' & ') || 'The imposters';
-                          return names.length === 1 ? `${text} wins!` : `${text} win!`;
-                        })()}
+                      : revealData.voteTied
+                        ? (revealData.teamWon ? 'Tie! Crew wins!' : 'Tie! Imposters win!')
+                        : (() => {
+                            const names = revealData.imposterNames?.filter(Boolean) || [];
+                            const text = names.join(' & ') || 'The imposters';
+                            return names.length === 1 ? `${text} wins!` : `${text} win!`;
+                          })()}
                   </p>
                 )}
                 {revealData.category && (
