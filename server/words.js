@@ -11,13 +11,30 @@ export const wordCategories = {
     "pizza", "coffee", "sushi", "tacos", "avocado toast", "kombucha",
     "croissant", "dim sum", "pho", "matcha", "craft beer", "charcuterie",
     "tiramisu", "smoothie bowl", "ramen", "gelato", "hummus", "ceviche",
-    "boba tea", "acai bowl"
+    "boba tea", "acai bowl",
+    "waffles", "paella", "bibimbap", "pad thai", "mussels",
+    "margarita", "espresso", "sourdough", "nachos", "falafel",
+    "macarons", "poutine", "poke bowl", "churros", "eggs benedict",
+    "bagel", "quesadilla", "birria", "mochi", "sake",
+    "mimosa", "bloody mary", "negroni", "cold brew", "hot chocolate",
+    "bruschetta", "tapas", "fondue", "gyro", "banh mi"
   ],
   "Movies & TV Shows": [
     "Stranger Things", "Titanic", "The Office", "Marvel", "Star Wars",
     "Friends", "Harry Potter", "Squid Game", "Breaking Bad", "Game of Thrones",
     "Jurassic Park", "The Lion King", "Bridgerton", "Inception", "Wednesday",
     "Ted Lasso", "Barbie", "Top Gun", "The Crown", "Bridesmaids"
+  ],
+  "NFL or NBA": [
+    "Patrick Mahomes", "Travis Kelce", "Chiefs", "Lakers", "LeBron James",
+    "Steph Curry", "Warriors", "49ers", "Cowboys", "Aaron Rodgers",
+    "Josh Allen", "Bills", "Eagles", "Jalen Hurts", "Celtics",
+    "Kevin Durant", "Giannis", "Bucks", "Lamar Jackson", "Ravens",
+    "Tyreek Hill", "Dolphins", "Justin Jefferson", "Vikings",
+    "Ja Morant", "Grizzlies", "Nikola Jokic", "Nuggets", "Luka Doncic",
+    "Mavericks", "Heat", "Jimmy Butler", "Anthony Edwards", "Patriots",
+    "Packers", "Steelers", "Tom Brady", "Michael Jordan", "Kobe Bryant",
+    "Kyrie Irving", "Suns", "Cavaliers", "Bears", "Raiders"
   ],
   "Athletes / Sports Figures": [
     "Michael Jordan", "Serena Williams", "Tom Brady", "Usain Bolt", "Simone Biles",
