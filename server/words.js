@@ -41,13 +41,25 @@ export const wordCategories = {
     "elephant", "penguin", "dolphin", "butterfly", "kangaroo",
     "octopus", "flamingo", "hedgehog", "chameleon", "giraffe",
     "sloth", "koala", "panda", "tiger", "peacock",
-    "hummingbird", "platypus", "meerkat", "llama", "owl"
+    "hummingbird", "platypus", "meerkat", "llama", "owl",
+    "zebra", "gorilla", "polar bear", "seahorse", "raccoon",
+    "fox", "wolf", "deer", "eagle", "parrot",
+    "goldfish", "jellyfish", "starfish", "crab", "sea turtle",
+    "crocodile", "snake", "lizard", "frog", "bat",
+    "squirrel", "rabbit", "hamster", "pig", "goat",
+    "camel", "hippo", "rhino", "ant", "ladybug",
+    "bee", "dragonfly", "firefly", "pelican", "swan"
   ],
   "Occupations / Jobs": [
     "teacher", "astronaut", "chef", "pilot", "photographer",
     "veterinarian", "architect", "journalist", "firefighter", "nurse",
     "lawyer", "barista", "DJ", "personal trainer", "real estate agent",
-    "software engineer", "hairstylist", "electrician", "plumber", "social worker"
+    "software engineer", "hairstylist", "electrician", "plumber", "social worker",
+    "mechanic", "dentist", "paramedic", "surgeon", "therapist",
+    "accountant", "librarian", "musician", "artist", "farmer",
+    "flight attendant", "construction worker", "carpenter", "welder", "scientist",
+    "politician", "judge", "police officer", "military", "bus driver",
+    "mail carrier", "pharmacist", "tattoo artist", "yoga instructor", "dog walker"
   ],
   "Fictional Characters": [
     "Spider-Man", "Elsa", "Harry Potter", "Homer Simpson", "Mario",
@@ -59,7 +71,13 @@ export const wordCategories = {
     "umbrella", "headphones", "water bottle", "charging cable", "keys",
     "scissors", "tape", "stapler", "paper clips", "coaster",
     "nail clippers", "lint roller", "hair dryer", "toothbrush", "alarm clock",
-    "remote control", "wallet", "can opener", "corkscrew", "candle"
+    "remote control", "wallet", "can opener", "corkscrew", "candle",
+    "flashlight", "backpack", "sunglasses", "laptop stand", "mouse pad",
+    "pillow", "blanket", "mug", "pen", "notepad",
+    "rubber band", "binder clip", "sticky notes", "magnifying glass", "safety pin",
+    "sponge", "dish soap", "trash bag", "laundry basket", "hanger",
+    "shoehorn", "shoe rack", "doormat", "doorstop", "picture frame",
+    "ice tray", "thermos", "lunchbox", "mailbox", "plant pot"
   ]
 };
 
