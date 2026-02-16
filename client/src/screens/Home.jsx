@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ConnectionHelp from './ConnectionHelp';
 
 function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onSignUp, onSignIn, error, connecting = false, onRetryConnection, serverHealthUrl }) {
   const [mode, setMode] = useState(null);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+
+  // Pre-fill name with username when logged in (ensures stats link to account)
+  useEffect(() => {
+    if (username && userId) setName((prev) => prev || username);
+  }, [username, userId]);
 
   const handleCreate = (e) => {
     e.preventDefault();

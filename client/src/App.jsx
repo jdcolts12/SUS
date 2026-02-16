@@ -24,12 +24,21 @@ function App() {
 
   useEffect(() => {
     if (userId && !username) {
-      api.getUser(userId).then((u) => {
-        if (u?.username) {
-          localStorage.setItem('username', u.username);
-          setUsername(u.username);
-        }
-      }).catch(() => {});
+      api.getUser(userId)
+        .then((u) => {
+          if (u?.username) {
+            localStorage.setItem('username', u.username);
+            setUsername(u.username);
+          }
+        })
+        .catch((err) => {
+          if (/not found|404/i.test(err?.message || '')) {
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            setUserId(null);
+            setUsername(null);
+          }
+        });
     }
   }, [userId, username]);
   const [gameState, setGameState] = useState({

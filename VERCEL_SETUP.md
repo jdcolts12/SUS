@@ -2,6 +2,8 @@
 
 Create Account requires the **server** (on Render) to be reachable. The client needs to know the server URL.
 
+**For persistent accounts & stats** on Render (free tier wipes data on sleep/deploy), see [TURSO_SETUP.md](./TURSO_SETUP.md).
+
 ## 1. Deploy the server on Render
 
 If not already done: push to GitHub. Render will auto-deploy from the repo. Your server URL will be something like:

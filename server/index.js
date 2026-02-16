@@ -102,13 +102,10 @@ app.post('/api/reveal-imposter', (req, res) => {
     if (round.roundVariant !== 'no_imposter') {
       game.players.forEach((p) => {
         if (p.userId) {
-          try {
-            const wasImposter = round.imposterIds.includes(p.id);
-            const won = wasImposter ? !votedWasImposter : votedWasImposter;
-            db.recordRoundResult(p.userId, wasImposter, won);
-          } catch (e) {
-            console.warn('[reveal] recordRoundResult failed:', e?.message);
-          }
+          const wasImposter = round.imposterIds.includes(p.id);
+          const won = wasImposter ? !votedWasImposter : votedWasImposter;
+          db.recordRoundResult(p.userId, wasImposter, won)
+            .catch((e) => console.warn('[reveal] recordRoundResult failed:', e?.message));
         }
       });
     }
@@ -602,13 +599,10 @@ io.on('connection', (socket) => {
       if (round.roundVariant !== 'no_imposter') {
         game.players.forEach((p) => {
           if (p.userId) {
-            try {
-              const wasImposter = round.imposterIds.includes(p.id);
-              const won = wasImposter ? !votedWasImposter : votedWasImposter;
-              db.recordRoundResult(p.userId, wasImposter, won);
-            } catch (e) {
-              console.warn('[reveal-imposter] recordRoundResult failed:', e?.message);
-            }
+            const wasImposter = round.imposterIds.includes(p.id);
+            const won = wasImposter ? !votedWasImposter : votedWasImposter;
+            db.recordRoundResult(p.userId, wasImposter, won)
+              .catch((e) => console.warn('[reveal-imposter] recordRoundResult failed:', e?.message));
           }
         });
       }
@@ -651,7 +645,8 @@ io.on('connection', (socket) => {
         if (p.userId) {
           const wasImposter = round.imposterIds.includes(p.id);
           const won = wasImposter ? !votedWasImposter : votedWasImposter;
-          db.recordRoundResult(p.userId, wasImposter, won);
+          db.recordRoundResult(p.userId, wasImposter, won)
+            .catch((e) => console.warn('[record-round-result] failed:', e?.message));
         }
       });
     }
