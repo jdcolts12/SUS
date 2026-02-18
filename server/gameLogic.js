@@ -6,16 +6,35 @@ function randomInt(min, max) {
 
 /**
  * Creates a new game round with:
- * - One random word from a random category
+ * - One random word from a random category (avoids repeating last 2 categories/words)
  * - Imposter(s): ~90% 1 imposter, ~5% no imposter, ~5% 2 imposters
  * - Turn order assigned to each player (1st, 2nd, 3rd...)
  */
-export function createRound(playerIds) {
-  const category = categoryNames[randomInt(0, categoryNames.length)];
-  const words = wordCategories[category];
+export function createRound(playerIds, recentRounds = []) {
+  const lastTwo = recentRounds.slice(-2);
+  const skipCategories = lastTwo.map((r) => r?.category).filter(Boolean);
+  const skipWords = lastTwo.map((r) => ({ cat: r?.category, word: r?.word })).filter((x) => x.cat && x.word);
+
+  const availableCategories = categoryNames.filter((c) => !skipCategories.includes(c));
+  const category = availableCategories.length > 0
+    ? availableCategories[randomInt(0, availableCategories.length)]
+    : categoryNames[randomInt(0, categoryNames.length)];
+
+  let words = [...wordCategories[category]];
+  const excludeWords = skipWords.filter((x) => x.cat === category).map((x) => x.word);
+  if (excludeWords.length > 0) {
+    words = words.filter((w) => !excludeWords.includes(w));
+  }
+  if (words.length === 0) words = [...wordCategories[category]];
   const word = words[randomInt(0, words.length)];
 
   // ~10% chance: no imposter OR 2 imposters (mutually exclusive, 50/50 split within that 10%)
+  // Prefer players who've been imposter fewer times in last ~10 rounds (soft cap, repeats allowed)
+  const lastTen = recentRounds.slice(-10);
+  const imposterCount = {};
+  playerIds.forEach((id) => { imposterCount[id] = 0; });
+  lastTen.forEach((r) => (r?.imposterIds || []).forEach((id) => { imposterCount[id] = (imposterCount[id] || 0) + 1; }));
+
   const specialRoll = Math.random();
   let imposterIds = [];
   let roundVariant = 'normal';
@@ -24,10 +43,12 @@ export function createRound(playerIds) {
     roundVariant = 'no_imposter';
   } else if (specialRoll < 0.1) {
     roundVariant = 'two_imposters';
-    const [i, j] = pickTwoDifferent(playerIds.length);
-    imposterIds = [playerIds[i], playerIds[j]];
+    const pool = pickByLowestCount(playerIds, imposterCount, 2);
+    const [i, j] = pickTwoDifferent(pool.length);
+    imposterIds = [pool[i], pool[j]];
   } else {
-    imposterIds = [playerIds[randomInt(0, playerIds.length)]];
+    const pool = pickByLowestCount(playerIds, imposterCount, 1);
+    imposterIds = [pool[randomInt(0, pool.length)]];
   }
 
   // ~10% chance imposter goes first (only if we have exactly 1 imposter)
@@ -71,6 +92,14 @@ function pickTwoDifferent(n) {
   let j = randomInt(0, n - 1);
   if (j >= i) j++;
   return [i, j];
+}
+
+/** Returns players to pick from, preferring those with lowest imposter count in recent rounds. */
+function pickByLowestCount(playerIds, imposterCount, need) {
+  const byCount = playerIds.slice().sort((a, b) => (imposterCount[a] || 0) - (imposterCount[b] || 0));
+  const minCount = imposterCount[byCount[0]] ?? 0;
+  const lowCount = byCount.filter((id) => (imposterCount[id] ?? 0) <= minCount);
+  return lowCount.length >= need ? lowCount : playerIds;
 }
 
 function getOrdinal(n) {

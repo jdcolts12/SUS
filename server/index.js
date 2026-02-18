@@ -67,7 +67,7 @@ function recordRoundResults(game, round, votedPlayerId, votedWasImposter, teamWo
 
 const io = new Server(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
-  pingTimeout: 60000,
+  pingTimeout: 5 * 60 * 1000,
   pingInterval: 25000,
 });
 
@@ -213,8 +213,15 @@ app.post('/api/start-game', (req, res) => {
       return res.status(400).json({ ok: false, error: 'Need at least 4 players to start!' });
     }
     const playerIds = game.players.map((p) => p.id);
-    const round = createRound(playerIds);
+    const recentRounds = [game.currentRound, ...(game.roundHistory || [])].filter(Boolean).slice(-10);
+    const round = createRound(playerIds, recentRounds);
     round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+    round.assignmentsByName = {};
+    game.players.forEach((p) => {
+      const a = round.assignments[p.id];
+      if (a) round.assignmentsByName[(p.name || '').toLowerCase()] = a;
+    });
+    if (game.currentRound) game.roundHistory = [...(game.roundHistory || []), game.currentRound].slice(-10);
     game.currentRound = round;
     game.status = 'playing';
     game.players.forEach((p) => {
@@ -267,8 +274,15 @@ app.post('/api/new-round', (req, res) => {
     game.votePhase = null;
     game.votes = null;
     const playerIds = game.players.map((p) => p.id);
-    const round = createRound(playerIds);
+    const recentRounds = [game.currentRound, ...(game.roundHistory || [])].filter(Boolean).slice(-10);
+    const round = createRound(playerIds, recentRounds);
     round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+    round.assignmentsByName = {};
+    game.players.forEach((p) => {
+      const a = round.assignments[p.id];
+      if (a) round.assignmentsByName[(p.name || '').toLowerCase()] = a;
+    });
+    if (game.currentRound) game.roundHistory = [...(game.roundHistory || []), game.currentRound].slice(-10);
     game.currentRound = round;
     game.players.forEach((p) => {
       const a = round.assignments[p.id];
@@ -344,6 +358,7 @@ function createGame(hostId, hostName, hostUserId) {
     players: [{ id: hostId, name: hostName, userId: hostUserId || null }],
     status: 'lobby',
     currentRound: null,
+    roundHistory: [],
   };
 
   games.set(gameId, game);
@@ -419,7 +434,9 @@ io.on('connection', (socket) => {
 
     if (game.status === 'playing' && game.currentRound) {
       const round = game.currentRound;
-      const assignment = round.assignments[oldId] || round.assignments[socket.id];
+      const assignment = round.assignmentsByName?.[(player.name || '').toLowerCase()]
+        || round.assignments[oldId]
+        || round.assignments[socket.id];
       if (assignment) {
         const payload = {
           turnOrderText: assignment.turnOrderText,
@@ -483,8 +500,15 @@ io.on('connection', (socket) => {
       return;
     }
     const playerIds = game.players.map((p) => p.id);
-    const round = createRound(playerIds);
+    const recentRounds = [game.currentRound, ...(game.roundHistory || [])].filter(Boolean).slice(-10);
+    const round = createRound(playerIds, recentRounds);
     round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+    round.assignmentsByName = {};
+    game.players.forEach((p) => {
+      const a = round.assignments[p.id];
+      if (a) round.assignmentsByName[(p.name || '').toLowerCase()] = a;
+    });
+    if (game.currentRound) game.roundHistory = [...(game.roundHistory || []), game.currentRound].slice(-10);
     game.currentRound = round;
     game.status = 'playing';
 
@@ -520,8 +544,15 @@ io.on('connection', (socket) => {
     game.votePhase = null;
     game.votes = null;
     const playerIds = game.players.map((p) => p.id);
-    const round = createRound(playerIds);
+    const recentRounds = [game.currentRound, ...(game.roundHistory || [])].filter(Boolean).slice(-10);
+    const round = createRound(playerIds, recentRounds);
     round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+    round.assignmentsByName = {};
+    game.players.forEach((p) => {
+      const a = round.assignments[p.id];
+      if (a) round.assignmentsByName[(p.name || '').toLowerCase()] = a;
+    });
+    if (game.currentRound) game.roundHistory = [...(game.roundHistory || []), game.currentRound].slice(-10);
     game.currentRound = round;
 
     game.players.forEach((player) => {

@@ -84,6 +84,15 @@ export const wordCategories = {
     "Iron Man", "Mickey Mouse", "Cinderella", "Thor", "Walter White",
     "Eleven", "Barbie", "Woody", "Shrek", "The Joker"
   ],
+  "Hobbies": [
+    "photography", "cooking", "hiking", "gaming", "reading",
+    "fishing", "painting", "yoga", "gardening", "knitting",
+    "running", "camping", "chess", "surfing", "skiing",
+    "baking", "birdwatching", "podcasts", "puzzles", "drawing",
+    "dancing", "jogging", "scuba diving", "pottery", "collecting",
+    "cycling", "karaoke", "meditation", "calligraphy", "magic tricks",
+    "board games", "movie marathon", "stargazing", "travel", "journaling"
+  ],
   "Everyday Objects": [
     "umbrella", "headphones", "water bottle", "charging cable", "keys",
     "scissors", "tape", "stapler", "paper clips", "coaster",
