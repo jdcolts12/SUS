@@ -129,4 +129,14 @@ router.get('/users/:id/stats', async (req, res) => {
   }
 });
 
+// Leaderboard - all players with stats
+router.get('/leaderboard', async (req, res) => {
+  try {
+    const leaderboard = await db.getLeaderboard();
+    res.json(leaderboard);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

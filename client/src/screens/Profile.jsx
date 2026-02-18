@@ -26,7 +26,12 @@ function Profile({ userId, onEditProfile, onFriends, onBack, onSignOut }) {
   }
   if (!user) return null;
 
-  const stats = user.stats || { teamWins: 0, teamLosses: 0, imposterWins: 0, imposterLosses: 0 };
+  const stats = user.stats || { teamWins: 0, teamLosses: 0, imposterWins: 0, imposterLosses: 0, correctVotes: 0, totalCrewVotes: 0 };
+  const crewTotal = stats.teamWins + stats.teamLosses;
+  const impTotal = stats.imposterWins + stats.imposterLosses;
+  const crewWinPct = crewTotal > 0 ? Math.round((stats.teamWins / crewTotal) * 100) : null;
+  const imposterWinPct = impTotal > 0 ? Math.round((stats.imposterWins / impTotal) * 100) : null;
+  const correctVotePct = stats.totalCrewVotes > 0 ? Math.round((stats.correctVotes / stats.totalCrewVotes) * 100) : null;
 
   return (
     <div className="profile" style={{ '--profile-bg': user.bg_color || '#1a1a2e' }}>
@@ -43,6 +48,7 @@ function Profile({ userId, onEditProfile, onFriends, onBack, onSignOut }) {
         </div>
         <h1 className="profile__name">{user.username}</h1>
         <div className="profile__actions">
+          <button className="btn btn--secondary" onClick={onLeaderboard}>Leaderboard</button>
           <button className="btn btn--secondary" onClick={onEditProfile}>Edit Profile</button>
           <button className="btn btn--secondary" onClick={onFriends}>Friends</button>
         </div>
@@ -52,20 +58,20 @@ function Profile({ userId, onEditProfile, onFriends, onBack, onSignOut }) {
         <h3>Stats</h3>
         <div className="profile__stat-grid">
           <div className="profile__stat">
-            <span className="profile__stat-value">{stats.teamWins}</span>
-            <span className="profile__stat-label">Team Wins</span>
+            <span className="profile__stat-value">{crewWinPct !== null ? `${crewWinPct}%` : '—'}</span>
+            <span className="profile__stat-label">Crew Win %</span>
           </div>
           <div className="profile__stat">
-            <span className="profile__stat-value">{stats.teamLosses}</span>
-            <span className="profile__stat-label">Team Losses</span>
+            <span className="profile__stat-value">{imposterWinPct !== null ? `${imposterWinPct}%` : '—'}</span>
+            <span className="profile__stat-label">Imposter Win %</span>
           </div>
           <div className="profile__stat">
-            <span className="profile__stat-value">{stats.imposterWins}</span>
-            <span className="profile__stat-label">Imposter Wins</span>
+            <span className="profile__stat-value">{correctVotePct !== null ? `${correctVotePct}%` : '—'}</span>
+            <span className="profile__stat-label">Correct Vote %</span>
           </div>
           <div className="profile__stat">
-            <span className="profile__stat-value">{stats.imposterLosses}</span>
-            <span className="profile__stat-label">Imposter Losses</span>
+            <span className="profile__stat-value">{stats.teamWins + stats.teamLosses + stats.imposterWins + stats.imposterLosses}</span>
+            <span className="profile__stat-label">Games Played</span>
           </div>
         </div>
       </div>

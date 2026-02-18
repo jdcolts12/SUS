@@ -51,6 +51,7 @@ export const api = {
   getFriendRequests: (userId) => fetchApi(`/users/${userId}/friends/requests`),
   getFriends: (userId) => fetchApi(`/users/${userId}/friends`),
   getStats: (userId) => fetchApi(`/users/${userId}/stats`),
+  getLeaderboard: () => fetchApi('/leaderboard'),
   submitVote: async (gameId, code, playerName, votedPlayerIds, noImposter, players = []) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 15000);

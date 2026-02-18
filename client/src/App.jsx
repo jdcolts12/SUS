@@ -8,6 +8,7 @@ import EditProfile from './screens/EditProfile';
 import Friends from './screens/Friends';
 import SignUp from './screens/SignUp';
 import SignIn from './screens/SignIn';
+import Leaderboard from './screens/Leaderboard';
 import { api } from './api';
 
 const API_URL = import.meta.env.VITE_SOCKET_URL?.replace(/\/$/, '') || (import.meta.env.DEV ? `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3001` : null);
@@ -124,7 +125,20 @@ function App() {
           isHost: !!gs.isHost,
         }, (res) => {
           if (res?.ok) {
-            setGameState((prev) => ({ ...prev, playerId: s.id }));
+            setGameState((prev) => ({
+              ...prev,
+              gameId: res.gameId ?? prev.gameId,
+              code: res.code ?? prev.code,
+              playerId: s.id,
+              players: res.players || prev.players,
+              isHost: res.isHost ?? prev.isHost,
+            }));
+            if (res.screen === 'lobby') {
+              setScreen('lobby');
+              setWordData(null);
+              setVotePhase(null);
+              setRevealData(null);
+            }
           }
         });
       }
@@ -242,6 +256,21 @@ function App() {
     return () => clearInterval(id);
   }, [disconnected, socket, connecting, retryConnection]);
 
+  // Auto-connect when we have a saved game (e.g. after refresh) so rejoin can run
+  useEffect(() => {
+    if (!socket) return;
+    try {
+      const raw = sessionStorage.getItem('sus_game');
+      const savedName = sessionStorage.getItem('sus_playerName');
+      if (raw && savedName) {
+        const saved = JSON.parse(raw);
+        if (saved?.gameId && saved?.code) {
+          socket.connect();
+        }
+      }
+    } catch (_) {}
+  }, [socket]);
+
   useEffect(() => {
     if (!socket || screen === 'home' || connecting) return;
     const REFRESH_MS = 10 * 60 * 1000;
@@ -254,21 +283,48 @@ function App() {
     return () => clearInterval(id);
   }, [socket, screen, connecting]);
 
-  const wakeServerThenConnect = async (action) => {
+  const wakeServerThenConnect = (action) => {
     if (!socket) return;
     setError('');
     setConnecting(true);
     const url = (import.meta.env.VITE_SOCKET_URL || '').replace(/\/$/, '');
+    const runAction = () => {
+      setConnecting(false);
+      action();
+    };
+    const runWithConnect = () => {
+      if (socket.connected) {
+        runAction();
+        return;
+      }
+      const timeout = setTimeout(() => {
+        socket.off('connect', onConnect);
+        setConnecting(false);
+        setError("Connection timed out. Tap Create again—server may be waking (can take 60s).");
+      }, 90000);
+      const onConnect = () => {
+        clearTimeout(timeout);
+        runAction();
+      };
+      socket.once('connect', onConnect);
+    };
     if (url && !import.meta.env.DEV) {
-      try {
-        const c = new AbortController();
-        setTimeout(() => c.abort(), 75000);
-        await fetch(`${url}/health`, { mode: 'cors', signal: c.signal });
-      } catch (_) {}
-      socket.disconnect();
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 75000);
+      fetch(`${url}/health`, { mode: 'cors', signal: ctrl.signal })
+        .catch(() => {})
+        .finally(() => {
+          clearTimeout(t);
+          socket.disconnect();
+          socket.connect();
+          runWithConnect();
+        });
+    } else {
+      if (!socket.connected) {
+        socket.connect();
+      }
+      runWithConnect();
     }
-    socket.connect();
-    action();
   };
 
   const persistGameInfo = (gameId, code, name) => {
@@ -284,6 +340,9 @@ function App() {
       return;
     }
     setPlayerName(name);
+    try {
+      sessionStorage.removeItem('sus_game');
+    } catch (_) {}
     wakeServerThenConnect(() => {
       socket.emit('create-game', { playerName: name, userId: userId || undefined });
     });
@@ -497,6 +556,7 @@ function App() {
         userId={userId}
         onEditProfile={() => setScreen('edit-profile')}
         onFriends={() => setScreen('friends')}
+        onLeaderboard={() => setScreen('leaderboard')}
         onBack={() => setScreen('home')}
         onSignOut={() => { localStorage.removeItem('userId'); localStorage.removeItem('username'); setUserId(null); setUsername(null); setScreen('home'); }}
       />
@@ -550,6 +610,7 @@ function App() {
         onCreateGame={createGame}
         onJoinGame={joinGame}
         onProfile={() => setScreen('profile')}
+        onLeaderboard={() => setScreen('leaderboard')}
         onSignUp={() => setScreen('signup')}
         onSignIn={() => setScreen('signin')}
         username={username}

@@ -63,10 +63,14 @@ async function initSchemaTurso() {
       user_id TEXT NOT NULL,
       was_imposter INTEGER NOT NULL,
       won INTEGER NOT NULL,
+      vote_correct INTEGER,
       created_at INTEGER DEFAULT (strftime('%s','now'))
     )`,
     `CREATE INDEX IF NOT EXISTS idx_round_results_user ON round_results(user_id)`,
   ]);
+  try {
+    await client.execute('ALTER TABLE round_results ADD COLUMN vote_correct INTEGER');
+  } catch (_) {}
 }
 
 function initSchemaSqlite(database) {
@@ -103,6 +107,7 @@ function initSchemaSqlite(database) {
       user_id TEXT NOT NULL,
       was_imposter INTEGER NOT NULL,
       won INTEGER NOT NULL,
+      vote_correct INTEGER,
       created_at INTEGER DEFAULT (strftime('%s','now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
@@ -112,6 +117,12 @@ function initSchemaSqlite(database) {
   if (!cols.some((c) => c.name === 'password_hash')) {
     try {
       database.exec('ALTER TABLE users ADD COLUMN password_hash TEXT');
+    } catch (_) {}
+  }
+  const rrCols = database.prepare('PRAGMA table_info(round_results)').all();
+  if (!rrCols.some((c) => c.name === 'vote_correct')) {
+    try {
+      database.exec('ALTER TABLE round_results ADD COLUMN vote_correct INTEGER');
     } catch (_) {}
   }
 }
@@ -421,25 +432,30 @@ export async function getUserStats(userId) {
   if (USE_TURSO) {
     const client = getTurso();
     const res = await client.execute({
-      sql: 'SELECT was_imposter, won FROM round_results WHERE user_id = ?',
+      sql: 'SELECT was_imposter, won, vote_correct FROM round_results WHERE user_id = ?',
       args: [userId],
     });
-    let teamWins = 0, teamLosses = 0, imposterWins = 0, imposterLosses = 0;
+    let teamWins = 0, teamLosses = 0, imposterWins = 0, imposterLosses = 0, correctVotes = 0, totalCrewVotes = 0;
     res.rows.forEach((r) => {
       const wasImposter = r[0] !== 0;
       const won = r[1] !== 0;
+      const vc = r[2];
       if (wasImposter) {
         if (won) imposterWins++;
         else imposterLosses++;
       } else {
         if (won) teamWins++;
         else teamLosses++;
+        if (vc !== null && vc !== undefined) {
+          totalCrewVotes++;
+          if (vc !== 0) correctVotes++;
+        }
       }
     });
-    return { teamWins, teamLosses, imposterWins, imposterLosses };
+    return { teamWins, teamLosses, imposterWins, imposterLosses, correctVotes, totalCrewVotes };
   }
-  const rows = getDb().prepare('SELECT was_imposter, won FROM round_results WHERE user_id = ?').all(userId);
-  let teamWins = 0, teamLosses = 0, imposterWins = 0, imposterLosses = 0;
+  const rows = getDb().prepare('SELECT was_imposter, won, vote_correct FROM round_results WHERE user_id = ?').all(userId);
+  let teamWins = 0, teamLosses = 0, imposterWins = 0, imposterLosses = 0, correctVotes = 0, totalCrewVotes = 0;
   rows.forEach((r) => {
     if (r.was_imposter) {
       if (r.won) imposterWins++;
@@ -447,23 +463,77 @@ export async function getUserStats(userId) {
     } else {
       if (r.won) teamWins++;
       else teamLosses++;
+      if (r.vote_correct !== null && r.vote_correct !== undefined) {
+        totalCrewVotes++;
+        if (r.vote_correct !== 0) correctVotes++;
+      }
     }
   });
-  return { teamWins, teamLosses, imposterWins, imposterLosses };
+  return { teamWins, teamLosses, imposterWins, imposterLosses, correctVotes, totalCrewVotes };
 }
 
-export async function recordRoundResult(userId, wasImposter, won) {
+export async function recordRoundResult(userId, wasImposter, won, voteCorrect = null) {
+  const vc = voteCorrect === null || voteCorrect === undefined ? null : (voteCorrect ? 1 : 0);
   if (USE_TURSO) {
     const client = getTurso();
     await client.execute({
-      sql: 'INSERT INTO round_results (id, user_id, was_imposter, won) VALUES (?, ?, ?, ?)',
-      args: [crypto.randomUUID(), userId, wasImposter ? 1 : 0, won ? 1 : 0],
+      sql: 'INSERT INTO round_results (id, user_id, was_imposter, won, vote_correct) VALUES (?, ?, ?, ?, ?)',
+      args: [crypto.randomUUID(), userId, wasImposter ? 1 : 0, won ? 1 : 0, vc],
     });
     return;
   }
   getDb().prepare(
-    'INSERT INTO round_results (id, user_id, was_imposter, won) VALUES (?, ?, ?, ?)'
-  ).run(crypto.randomUUID(), userId, wasImposter ? 1 : 0, won ? 1 : 0);
+    'INSERT INTO round_results (id, user_id, was_imposter, won, vote_correct) VALUES (?, ?, ?, ?, ?)'
+  ).run(crypto.randomUUID(), userId, wasImposter ? 1 : 0, won ? 1 : 0, vc);
+}
+
+export async function getLeaderboard() {
+  const leaderboardSql = `
+    SELECT u.id, u.username,
+      SUM(CASE WHEN r.was_imposter = 0 AND r.won = 1 THEN 1 ELSE 0 END) as team_wins,
+      SUM(CASE WHEN r.was_imposter = 0 AND r.won = 0 THEN 1 ELSE 0 END) as team_losses,
+      SUM(CASE WHEN r.was_imposter = 1 AND r.won = 1 THEN 1 ELSE 0 END) as imposter_wins,
+      SUM(CASE WHEN r.was_imposter = 1 AND r.won = 0 THEN 1 ELSE 0 END) as imposter_losses,
+      SUM(CASE WHEN r.was_imposter = 0 AND r.vote_correct = 1 THEN 1 ELSE 0 END) as correct_votes,
+      SUM(CASE WHEN r.was_imposter = 0 AND r.vote_correct IS NOT NULL THEN 1 ELSE 0 END) as total_crew_votes
+    FROM round_results r
+    JOIN users u ON u.id = r.user_id
+    GROUP BY r.user_id
+    HAVING (team_wins + team_losses + imposter_wins + imposter_losses) > 0
+    ORDER BY (team_wins + team_losses + imposter_wins + imposter_losses) DESC
+  `;
+  if (USE_TURSO) {
+    const client = getTurso();
+    const res = await client.execute({ sql: leaderboardSql });
+    return res.rows.map((r) => {
+      const row = rowToObj(res.columns, r);
+      const teamTotal = (row.team_wins || 0) + (row.team_losses || 0);
+      const impTotal = (row.imposter_wins || 0) + (row.imposter_losses || 0);
+      const crewVotes = row.total_crew_votes || 0;
+      return {
+        id: row.id,
+        username: row.username,
+        crewWinPct: teamTotal > 0 ? Math.round((row.team_wins / teamTotal) * 100) : null,
+        imposterWinPct: impTotal > 0 ? Math.round((row.imposter_wins / impTotal) * 100) : null,
+        correctVotePct: crewVotes > 0 ? Math.round(((row.correct_votes || 0) / crewVotes) * 100) : null,
+        gamesPlayed: teamTotal + impTotal,
+      };
+    });
+  }
+  const rows = getDb().prepare(leaderboardSql).all();
+  return rows.map((r) => {
+    const teamTotal = (r.team_wins || 0) + (r.team_losses || 0);
+    const impTotal = (r.imposter_wins || 0) + (r.imposter_losses || 0);
+    const crewVotes = r.total_crew_votes || 0;
+    return {
+      id: r.id,
+      username: r.username,
+      crewWinPct: teamTotal > 0 ? Math.round((r.team_wins / teamTotal) * 100) : null,
+      imposterWinPct: impTotal > 0 ? Math.round((r.imposter_wins / impTotal) * 100) : null,
+      correctVotePct: crewVotes > 0 ? Math.round(((r.correct_votes || 0) / crewVotes) * 100) : null,
+      gamesPlayed: teamTotal + impTotal,
+    };
+  });
 }
 
 export async function findByUsername(username) {

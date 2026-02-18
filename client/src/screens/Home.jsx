@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ConnectionHelp from './ConnectionHelp';
 
-function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onSignUp, onSignIn, error, connecting = false, onRetryConnection, serverHealthUrl }) {
+function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onLeaderboard, onSignUp, onSignIn, error, connecting = false, onRetryConnection, serverHealthUrl }) {
   const [mode, setMode] = useState(null);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -27,14 +27,18 @@ function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onSignUp,
         {userId ? (
           <>
             <span className="home__logged-in">Hi, {username || 'Player'}!</span>
-            <button className="home__profile-btn btn btn--secondary" onClick={onProfile}>
-              Profile
-            </button>
+            <div className="home__header-btns">
+              <button className="home__profile-btn btn btn--secondary" onClick={onLeaderboard}>Leaderboard</button>
+              <button className="home__profile-btn btn btn--secondary" onClick={onProfile}>Profile</button>
+            </div>
           </>
         ) : (
           <>
-            <button className="home__profile-btn btn btn--secondary" onClick={onSignIn}>Sign in</button>
-            <button className="home__profile-btn btn btn--primary" onClick={onSignUp}>Create account</button>
+            <div className="home__header-btns">
+              <button className="home__profile-btn btn btn--secondary" onClick={onLeaderboard}>Leaderboard</button>
+              <button className="home__profile-btn btn btn--secondary" onClick={onSignIn}>Sign in</button>
+              <button className="home__profile-btn btn btn--primary" onClick={onSignUp}>Create account</button>
+            </div>
           </>
         )}
       </div>
@@ -91,7 +95,7 @@ function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onSignUp,
             required
           />
           <button type="submit" className="btn btn--primary" disabled={connecting}>
-            {connecting ? 'Connecting...' : 'Create & Get Code'}
+            {connecting ? 'Connecting… (may take 60s if server was sleeping)' : 'Create & Get Code'}
           </button>
           <button
             type="button"
