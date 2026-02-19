@@ -25,7 +25,13 @@ async function fetchApi(path, options = {}) {
   const data = contentType?.includes('application/json')
     ? await res.json().catch(() => ({}))
     : {};
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  if (!res.ok) {
+    const msg = data.error || `Request failed (${res.status})`;
+    if (res.status === 404 && /game not found/i.test(msg)) {
+      throw new Error('Game session ended (server may have restarted). Go back to lobby and create a new game.');
+    }
+    throw new Error(msg);
+  }
   if (!contentType?.includes('application/json')) {
     throw new Error('Invalid server response. Set VITE_SOCKET_URL in Vercel to your Render server URL (e.g. https://sus-server.onrender.com), then redeploy.');
   }

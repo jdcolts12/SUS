@@ -20,7 +20,6 @@ app.get('/api/categories', (req, res) => {
   res.json({ categories: categoryNames, words: wordCategories });
 });
 
-// Game API router (mounted first so /api/custom-round etc. match before apiRouter)
 const gameApiRouter = express.Router();
 app.use('/api', gameApiRouter);
 app.use('/api', apiRouter);
@@ -217,7 +216,7 @@ gameApiRouter.post('/submit-vote', (req, res) => {
   }
 });
 
-app.post('/api/start-game', (req, res) => {
+gameApiRouter.post('/start-game', (req, res) => {
   try {
     const { gameId, code, playerName } = req.body;
     if (!gameId || !code || !playerName) {
@@ -341,7 +340,7 @@ gameApiRouter.post('/new-round', (req, res) => {
   }
 });
 
-app.post('/api/custom-round', (req, res) => {
+gameApiRouter.post('/custom-round', (req, res) => {
   try {
     const { gameId, code, playerName, category, word } = req.body;
     if (!gameId || !code || !playerName || !category || !word) {
@@ -518,13 +517,13 @@ io.on('connection', (socket) => {
     }
     socket.join(game.code);
 
-    const isHost = game.hostId === socket.id;
+    const playerIsHost = game.hostId === socket.id;
     const ackPayload = {
       ok: true,
       gameId: game.id,
       code: game.code,
       players: game.players,
-      isHost,
+      isHost: playerIsHost,
       isCustom: game.isCustom,
       hostId: game.hostId,
       status: game.status,
@@ -534,7 +533,7 @@ io.on('connection', (socket) => {
     if (game.status === 'playing' && game.currentRound) {
       const round = game.currentRound;
       const playingCount = getPlayingCount(game);
-      if (game.isCustom && isHost) {
+      if (game.isCustom && playerIsHost) {
         socket.emit('host-round-ready', {
           category: round.category,
           word: round.word,
@@ -872,6 +871,11 @@ io.on('connection', (socket) => {
       }
     }
   });
+});
+
+// Ensure all API 404s return JSON (not HTML)
+app.use('/api', (req, res) => {
+  res.status(404).json({ ok: false, error: `Route not found: ${req.method} ${req.originalUrl}` });
 });
 
 const PORT = process.env.PORT || 3001;
