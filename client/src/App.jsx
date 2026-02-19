@@ -459,6 +459,11 @@ function App() {
   };
 
   const newRound = () => {
+    // In custom games, host always picks the word — both buttons go to host-setup
+    if (gameState.isCustom) {
+      newCustomRound();
+      return;
+    }
     if (!socket) { setError('Loading... try again in a moment.'); return; }
     if (!socket?.connected) retryConnection();
     const { gameId, code, playerName } = getGameCreds();
@@ -733,6 +738,7 @@ function App() {
           revealData={revealData}
           onStartVote={startVote}
           isStartingVote={isStartingVote}
+          isCustom={gameState.isCustom}
           onNewRound={newRound}
           onNewCustomRound={newCustomRound}
           onBackToLobby={() => { setScreen('lobby'); setHostRoundReady(null); setVotePhase(null); setRevealData(null); setError(''); }}

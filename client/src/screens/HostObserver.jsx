@@ -15,6 +15,7 @@ function HostObserver({
   revealData,
   onStartVote,
   isStartingVote,
+  isCustom,
   onRevealImposter,
   onNewRound,
   onNewCustomRound,
@@ -139,9 +140,12 @@ function HostObserver({
             <button type="button" className="btn btn--primary" onClick={onNewRound}>
               New Round
             </button>
-            <button type="button" className="btn btn--secondary" onClick={onNewCustomRound}>
-              New Custom Round
-            </button>
+            {/* In custom games, New Round and New Custom Round both go to host-setup; show both for normal games */}
+            {!isCustom && (
+              <button type="button" className="btn btn--secondary" onClick={onNewCustomRound}>
+                New Custom Round
+              </button>
+            )}
           </>
         )}
         <button type="button" className="btn btn--ghost" onClick={onBackToLobby}>
