@@ -696,6 +696,7 @@ function App() {
           code={code}
           playerName={pn || playerName}
           players={players}
+          socket={socket}
           onRoundStarted={() => {}}
           onHostRoundReady={(data) => {
             setHostRoundReady(data);

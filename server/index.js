@@ -656,6 +656,60 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('start-custom-round', ({ gameId, category, word }, ack) => {
+    const game = games.get(gameId);
+    if (!game || game.hostId !== socket.id || game.status !== 'playing') {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Game not found.' });
+      return;
+    }
+    const categoryTrim = String(category || '').trim();
+    const wordTrim = String(word || '').trim();
+    if (!categoryTrim || !wordTrim) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Category and word are required.' });
+      return;
+    }
+    const playerIds = game.players.filter((p) => p.id !== game.hostId).map((p) => p.id);
+    if (playerIds.length < 1) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Need at least 1 other player to start a round!' });
+      return;
+    }
+    game.votePhase = null;
+    game.votes = null;
+    const recentRounds = [game.currentRound, ...(game.roundHistory || [])].filter(Boolean).slice(-10);
+    const round = createRoundCustom(categoryTrim, wordTrim, playerIds, recentRounds);
+    round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+    round.assignmentsByName = {};
+    game.players.forEach((p) => {
+      const a = round.assignments[p.id];
+      if (a) round.assignmentsByName[(p.name || '').toLowerCase()] = a;
+    });
+    if (game.currentRound) game.roundHistory = [...(game.roundHistory || []), game.currentRound].slice(-10);
+    game.currentRound = round;
+    const playingCount = getPlayingCount(game);
+    game.players.forEach((p) => {
+      if (p.id === game.hostId) {
+        io.to(p.id).emit('host-round-ready', { category: categoryTrim, word: wordTrim, totalPlayers: playingCount });
+      } else {
+        const a = round.assignments[p.id];
+        if (a) {
+          io.to(p.id).emit('your-word', {
+            turnOrderText: a.turnOrderText,
+            turnOrder: a.turnOrder,
+            totalPlayers: playingCount,
+            roundVariant: a.roundVariant,
+            word: a.isImposter ? `${a.category}\n\nIMPOSTER` : a.word,
+            isImposter: a.isImposter,
+          });
+        }
+      }
+    });
+    io.to(game.code).emit('round-started');
+    if (typeof ack === 'function') ack({
+      ok: true,
+      hostRoundReady: { category: categoryTrim, word: wordTrim, totalPlayers: playingCount },
+    });
+  });
+
   socket.on('new-round', ({ gameId }) => {
     const game = games.get(gameId);
     if (!game || game.hostId !== socket.id || game.status !== 'playing') return;

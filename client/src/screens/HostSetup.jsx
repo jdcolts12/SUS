@@ -6,6 +6,7 @@ function HostSetup({
   code,
   playerName,
   players,
+  socket,
   onRoundStarted,
   onHostRoundReady,
   onBackToLobby,
@@ -26,17 +27,44 @@ function HostSetup({
     if (!categoryTrim || !wordTrim || submitting) return;
     setSubmitting(true);
     onClearError?.();
-    api.customRound(gameId, code, playerName, categoryTrim, wordTrim)
-      .then((data) => {
-        if (data?.hostRoundReady) {
-          onHostRoundReady?.(data.hostRoundReady);
+
+    const onSuccess = (data) => {
+      if (data?.hostRoundReady) {
+        onHostRoundReady?.(data.hostRoundReady);
+      }
+      onRoundStarted?.();
+    };
+    const onFail = (msg) => {
+      setSubmitting(false);
+      onError?.(msg || 'Failed to start round.');
+    };
+
+    // Prefer socket — stays on same server instance, avoids "Game not found" on Render
+    if (socket?.connected && gameId) {
+      let done = false;
+      const t = setTimeout(() => {
+        if (!done) {
+          done = true;
+          onFail('Start round timed out. Try again.');
         }
-        onRoundStarted?.();
-      })
-      .catch((err) => {
+      }, 15000);
+      socket.emit('start-custom-round', { gameId, category: categoryTrim, word: wordTrim }, (res) => {
+        if (done) return;
+        done = true;
+        clearTimeout(t);
         setSubmitting(false);
-        onError?.(err?.message || 'Failed to start round.');
-      })
+        if (res?.ok && res?.hostRoundReady) {
+          onSuccess(res);
+        } else {
+          onFail(res?.error || 'Failed to start round.');
+        }
+      });
+      return;
+    }
+
+    api.customRound(gameId, code, playerName, categoryTrim, wordTrim)
+      .then(onSuccess)
+      .catch((err) => onFail(err?.message))
       .finally(() => setSubmitting(false));
   };
 
