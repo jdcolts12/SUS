@@ -10,6 +10,8 @@ function YourWord({
   roundVariant,
   onNewRound,
   isHost,
+  isCustom,
+  hostId,
   onBackToLobby,
   players = [],
   playerId,
@@ -138,7 +140,9 @@ function YourWord({
     return "Your word";
   };
 
-  const otherPlayers = players.filter((p) => p.id !== playerId);
+  const otherPlayers = players.filter((p) =>
+    p.id !== playerId && (!isCustom || p.id !== hostId)
+  );
   const everyoneVoted = votedCount >= totalPlayers && totalPlayers > 0;
 
   const handleRevealImposter = () => {

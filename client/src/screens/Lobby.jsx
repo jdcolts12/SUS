@@ -1,4 +1,4 @@
-function Lobby({ code, players, isHost, onStartGame, error }) {
+function Lobby({ code, players, isHost, isCustom, onStartGame, error }) {
   const shareUrl = typeof navigator !== 'undefined' && navigator.share
     ? () => {
         navigator.share({
@@ -41,20 +41,37 @@ function Lobby({ code, players, isHost, onStartGame, error }) {
         </ul>
       </div>
 
-      {players.length < 4 && (
-        <p className="lobby__need">Need at least 4 players to start</p>
-      )}
-      {players.length >= 10 && (
-        <p className="lobby__need">Room full (max 10 players)</p>
+      {isCustom ? (
+        <>
+          {players.length < 3 && (
+            <p className="lobby__need">Custom games need at least 3 players (host + 2 players)</p>
+          )}
+          {players.length >= 10 && (
+            <p className="lobby__need">Room full (max 10 players)</p>
+          )}
+        </>
+      ) : (
+        <>
+          {players.length < 4 && (
+            <p className="lobby__need">Need at least 4 players to start</p>
+          )}
+          {players.length >= 10 && (
+            <p className="lobby__need">Room full (max 10 players)</p>
+          )}
+        </>
       )}
 
       {isHost && (
         <button
           className="btn btn--primary lobby__start"
           onClick={onStartGame}
-          disabled={players.length < 4 || players.length > 10}
+          disabled={
+            isCustom
+              ? (players.length < 3 || players.length > 10)
+              : (players.length < 4 || players.length > 10)
+          }
         >
-          Start Game
+          {isCustom ? 'Start Game (Pick Word)' : 'Start Game'}
         </button>
       )}
 

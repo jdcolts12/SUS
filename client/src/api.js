@@ -52,6 +52,23 @@ export const api = {
   getFriends: (userId) => fetchApi(`/users/${userId}/friends`),
   getStats: (userId) => fetchApi(`/users/${userId}/stats`),
   getLeaderboard: () => fetchApi('/leaderboard'),
+  getCategories: () => fetchApi('/categories'),
+  customRound: async (gameId, code, playerName, category, word) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const data = await fetchApi('/custom-round', {
+        method: 'POST',
+        body: JSON.stringify({ gameId, code, playerName, category, word }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      return data;
+    } catch (e) {
+      clearTimeout(t);
+      throw e;
+    }
+  },
   submitVote: async (gameId, code, playerName, votedPlayerIds, noImposter, players = []) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 15000);

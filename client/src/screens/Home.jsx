@@ -5,6 +5,7 @@ function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onLeaderb
   const [mode, setMode] = useState(null);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [createAsCustom, setCreateAsCustom] = useState(false);
 
   // Pre-fill name with username when logged in (ensures stats link to account)
   useEffect(() => {
@@ -13,7 +14,7 @@ function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onLeaderb
 
   const handleCreate = (e) => {
     e.preventDefault();
-    if (name.trim()) onCreateGame(name.trim());
+    if (name.trim()) onCreateGame(name.trim(), createAsCustom);
   };
 
   const handleJoin = (e) => {
@@ -85,6 +86,9 @@ function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onLeaderb
         </div>
       ) : mode === 'create' ? (
         <form className="home__form" onSubmit={handleCreate}>
+          {createAsCustom && (
+            <p className="home__custom-hint">You&apos;ll host and pick the category & word each round.</p>
+          )}
           <input
             type="text"
             placeholder="Your name"
@@ -100,7 +104,7 @@ function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onLeaderb
           <button
             type="button"
             className="btn btn--ghost"
-            onClick={() => { setMode(null); setName(''); }}
+            onClick={() => { setMode(null); setName(''); setCreateAsCustom(false); }}
           >
             Back
           </button>

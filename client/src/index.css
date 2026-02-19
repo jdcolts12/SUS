@@ -362,6 +362,92 @@ button {
   margin-top: 1rem;
 }
 
+/* Host Setup (custom game) */
+.host-setup, .host-observer {
+  min-height: 100%;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+.host-setup__title, .host-observer__title {
+  font-size: 1.5rem;
+  margin: 0;
+}
+.host-setup__hint, .host-observer__hint {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+  margin: 0;
+}
+.host-setup__players, .host-setup__need {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+.host-setup__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 320px;
+}
+.host-setup__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+.host-setup__select {
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 2px solid var(--surface-light);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 1rem;
+}
+.host-setup__submit { margin-top: 0.5rem; }
+.host-setup__back { margin-top: auto; }
+.host-setup__loading { color: var(--text-muted); }
+.host-observer__card {
+  background: var(--surface);
+  border: 2px solid var(--surface-light);
+  border-radius: 16px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+}
+.host-observer__label { font-size: 0.85rem; color: var(--text-muted); margin: 0.5rem 0 0; }
+.host-observer__value { font-size: 1.2rem; font-weight: 600; margin: 0; }
+.host-observer__vote-start, .host-observer__voting { margin-top: 1rem; }
+.host-observer__recap { margin-top: 1rem; }
+.host-observer__result { font-weight: 600; margin: 0.5rem 0; }
+.host-observer__actions { display: flex; gap: 1rem; margin-top: auto; flex-wrap: wrap; justify-content: center; }
+.host-observer__error {
+  color: var(--accent);
+  padding: 0.75rem 1rem;
+  background: rgba(255, 107, 53, 0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.host-observer__dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1rem;
+}
+.home__custom-hint {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem;
+}
+
 /* Your Word */
 .word__error {
   color: var(--accent);

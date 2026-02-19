@@ -107,3 +107,61 @@ function getOrdinal(n) {
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
+
+/**
+ * Creates a custom round: host picks category + word, host does NOT play.
+ * playerIds = only playing players (excludes host). Imposter is random among them.
+ */
+export function createRoundCustom(category, word, playerIds, recentRounds = []) {
+  if (!playerIds.length) throw new Error('Need at least one player');
+  const lastTen = recentRounds.slice(-10);
+  const imposterCount = {};
+  playerIds.forEach((id) => { imposterCount[id] = 0; });
+  lastTen.forEach((r) => (r?.imposterIds || []).forEach((id) => { imposterCount[id] = (imposterCount[id] || 0) + 1; }));
+
+  const specialRoll = Math.random();
+  let imposterIds = [];
+  let roundVariant = 'normal';
+  if (specialRoll < 0.05) {
+    roundVariant = 'no_imposter';
+  } else if (specialRoll < 0.1 && playerIds.length >= 2) {
+    roundVariant = 'two_imposters';
+    const pool = pickByLowestCount(playerIds, imposterCount, 2);
+    const [i, j] = pickTwoDifferent(pool.length);
+    imposterIds = [pool[i], pool[j]];
+  } else {
+    const pool = pickByLowestCount(playerIds, imposterCount, 1);
+    imposterIds = [pool[randomInt(0, pool.length)]];
+  }
+
+  let turnOrder = [...playerIds].sort(() => Math.random() - 0.5);
+  if (roundVariant === 'normal' && Math.random() < 0.1 && imposterIds.length === 1) {
+    const imposterId = imposterIds[0];
+    const others = playerIds.filter((id) => id !== imposterId);
+    turnOrder = [imposterId, ...others.sort(() => Math.random() - 0.5)];
+  }
+
+  const assignments = {};
+  turnOrder.forEach((playerId, index) => {
+    const position = index + 1;
+    const positionText = getOrdinal(position);
+    const isImposter = imposterIds.includes(playerId);
+    assignments[playerId] = {
+      word: isImposter ? null : word,
+      category: isImposter ? category : null,
+      isImposter,
+      roundVariant,
+      turnOrder: position,
+      turnOrderText: `You're ${positionText}`,
+    };
+  });
+
+  return {
+    category,
+    word,
+    imposterIds,
+    roundVariant,
+    assignments,
+    turnOrder,
+  };
+}

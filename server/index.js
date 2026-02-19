@@ -3,17 +3,24 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
-import { createRound } from './gameLogic.js';
+import { createRound, createRoundCustom } from './gameLogic.js';
+import { wordCategories, categoryNames } from './words.js';
 import apiRouter from './api.js';
 import * as db from './db.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
-app.use('/api', apiRouter);
 
 // Health check for Railway/deployment
 app.get('/health', (req, res) => res.json({ ok: true }));
+
+// Categories + words for custom game host (must be before /api router)
+app.get('/api/categories', (req, res) => {
+  res.json({ categories: categoryNames, words: wordCategories });
+});
+
+app.use('/api', apiRouter);
 
 const httpServer = createServer(app);
 
@@ -21,8 +28,13 @@ const games = new Map();
 const roomCodes = new Map();
 const disconnectTimeouts = new Map();
 
+function getPlayingCount(game) {
+  return game.isCustom ? Math.max(0, game.players.length - 1) : game.players.length;
+}
+
 function getVotedCount(game) {
-  return game.players.filter(
+  const voters = game.isCustom ? game.players.filter((p) => p.id !== game.hostId) : game.players;
+  return voters.filter(
     (p) => game.votes?.[p.id] !== undefined || game.votes?.[`__http__${p.name}`] !== undefined
   ).length;
 }
@@ -57,6 +69,7 @@ function isVoteCorrect(game, round, player, votedPlayerId, votedWasImposter, tea
 function recordRoundResults(game, round, votedPlayerId, votedWasImposter, teamWon) {
   game.players.forEach((p) => {
     if (!p.userId) return;
+    if (game.isCustom && p.id === game.hostId) return;
     const wasImposter = round.imposterIds.includes(p.id);
     const won = wasImposter ? !votedWasImposter : teamWon;
     const voteCorrect = isVoteCorrect(game, round, p, votedPlayerId, votedWasImposter, teamWon);
@@ -92,7 +105,7 @@ app.post('/api/reveal-imposter', (req, res) => {
     }
     const round = game.currentRound;
     if (!round) return res.status(400).json({ ok: false, error: 'No active round.' });
-    const totalPlayers = game.players.length;
+    const totalPlayers = getPlayingCount(game);
     const votedCount = getVotedCount(game);
     if (votedCount < totalPlayers) {
       return res.status(400).json({ ok: false, error: `Waiting for votes (${votedCount}/${totalPlayers}).` });
@@ -180,15 +193,16 @@ app.post('/api/submit-vote', (req, res) => {
         game.players.some((p) => p.id === id)
       );
     }
+    if (game.isCustom && player.id === game.hostId) {
+      return res.status(403).json({ ok: false, error: 'Host does not vote in custom games.' });
+    }
     const vote = noImposter ? '__no_imposter__' : voteIds;
     if (!game.votes) game.votes = {};
     delete game.votes[player.id];
     delete game.votes[`__http__${player.name}`];
     game.votes[`__http__${player.name}`] = vote;
-    const votedCount = game.players.filter(
-      (p) => game.votes?.[p.id] !== undefined || game.votes?.[`__http__${p.name}`] !== undefined
-    ).length;
-    io.to(game.code).emit('vote-received', { votedCount, totalPlayers: game.players.length });
+    const votedCount = getVotedCount(game);
+    io.to(game.code).emit('vote-received', { votedCount, totalPlayers: getPlayingCount(game) });
     res.json({ ok: true, votedCount });
   } catch (err) {
     console.error('[submit-vote HTTP]', err);
@@ -209,6 +223,14 @@ app.post('/api/start-game', (req, res) => {
     const player = game.players.find((p) => (p.name || '').toLowerCase().trim() === String(playerName || '').toLowerCase().trim());
     if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
     if (game.hostId !== player.id) return res.status(403).json({ ok: false, error: 'Only the host can start.' });
+    if (game.isCustom) {
+      if (game.players.length < 3) {
+        return res.status(400).json({ ok: false, error: 'Custom games need at least 3 players (host + 2 players)!' });
+      }
+      game.status = 'playing';
+      io.to(game.code).emit('game-started', { players: game.players, isCustom: true, needsSetup: true });
+      return res.json({ ok: true, isCustom: true, needsSetup: true });
+    }
     if (game.players.length < 4) {
       return res.status(400).json({ ok: false, error: 'Need at least 4 players to start!' });
     }
@@ -312,6 +334,67 @@ app.post('/api/new-round', (req, res) => {
   }
 });
 
+app.post('/api/custom-round', (req, res) => {
+  try {
+    const { gameId, code, playerName, category, word } = req.body;
+    if (!gameId || !code || !playerName || !category || !word) {
+      return res.status(400).json({ ok: false, error: 'gameId, code, playerName, category, and word required' });
+    }
+    const game = games.get(gameId);
+    if (!game || game.code !== String(code).toUpperCase()) {
+      return res.status(404).json({ ok: false, error: 'Game not found.' });
+    }
+    const player = game.players.find((p) => (p.name || '').toLowerCase().trim() === String(playerName || '').toLowerCase().trim());
+    if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
+    if (game.hostId !== player.id || !game.isCustom || game.status !== 'playing') {
+      return res.status(403).json({ ok: false, error: 'Only the host can set up a custom round.' });
+    }
+    const words = wordCategories[category];
+    if (!Array.isArray(words) || !words.includes(word)) {
+      return res.status(400).json({ ok: false, error: 'Invalid category or word.' });
+    }
+    game.votePhase = null;
+    game.votes = null;
+    const playerIds = game.players.filter((p) => p.id !== game.hostId).map((p) => p.id);
+    if (playerIds.length < 2) {
+      return res.status(400).json({ ok: false, error: 'Need at least 2 players (excluding host) for a round!' });
+    }
+    const recentRounds = [game.currentRound, ...(game.roundHistory || [])].filter(Boolean).slice(-10);
+    const round = createRoundCustom(category, word, playerIds, recentRounds);
+    round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+    round.assignmentsByName = {};
+    game.players.forEach((p) => {
+      const a = round.assignments[p.id];
+      if (a) round.assignmentsByName[(p.name || '').toLowerCase()] = a;
+    });
+    if (game.currentRound) game.roundHistory = [...(game.roundHistory || []), game.currentRound].slice(-10);
+    game.currentRound = round;
+    const playingCount = getPlayingCount(game);
+    game.players.forEach((p) => {
+      if (p.id === game.hostId) {
+        io.to(p.id).emit('host-round-ready', { category, word, totalPlayers: playingCount });
+      } else {
+        const a = round.assignments[p.id];
+        if (a) {
+          io.to(p.id).emit('your-word', {
+            turnOrderText: a.turnOrderText,
+            turnOrder: a.turnOrder,
+            totalPlayers: playingCount,
+            roundVariant: a.roundVariant,
+            word: a.isImposter ? `${a.category}\n\nIMPOSTER` : a.word,
+            isImposter: a.isImposter,
+          });
+        }
+      }
+    });
+    io.to(game.code).emit('round-started');
+    res.json({ ok: true, isHost: true });
+  } catch (err) {
+    console.error('[custom-round HTTP]', err);
+    res.status(500).json({ ok: false, error: err?.message || 'Custom round failed.' });
+  }
+});
+
 app.post('/api/start-vote', (req, res) => {
   try {
     const { gameId, code, playerName } = req.body;
@@ -329,7 +412,7 @@ app.post('/api/start-vote', (req, res) => {
     }
     game.votePhase = 'voting';
     game.votes = {};
-    io.to(game.code).emit('vote-started', { players: game.players });
+    io.to(game.code).emit('vote-started', { players: game.players, totalPlayers: getPlayingCount(game) });
     res.json({ ok: true });
   } catch (err) {
     console.error('[start-vote HTTP]', err);
@@ -346,7 +429,7 @@ function generateRoomCode() {
   return code;
 }
 
-function createGame(hostId, hostName, hostUserId) {
+function createGame(hostId, hostName, hostUserId, isCustom = false) {
   const gameId = uuidv4();
   let code = generateRoomCode();
   while (roomCodes.has(code)) code = generateRoomCode();
@@ -355,6 +438,7 @@ function createGame(hostId, hostName, hostUserId) {
     id: gameId,
     code,
     hostId,
+    isCustom: !!isCustom,
     players: [{ id: hostId, name: hostName, userId: hostUserId || null }],
     status: 'lobby',
     currentRound: null,
@@ -367,14 +451,15 @@ function createGame(hostId, hostName, hostUserId) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('create-game', ({ playerName, userId }) => {
-    const game = createGame(socket.id, playerName, userId);
+  socket.on('create-game', ({ playerName, userId, isCustom }) => {
+    const game = createGame(socket.id, playerName, userId, isCustom);
     socket.join(game.code);
     socket.emit('game-created', {
       code: game.code,
       gameId: game.id,
       playerId: socket.id,
       players: game.players,
+      isCustom: game.isCustom,
     });
   });
 
@@ -428,31 +513,42 @@ io.on('connection', (socket) => {
       code: game.code,
       players: game.players,
       isHost,
+      isCustom: game.isCustom,
+      hostId: game.hostId,
       status: game.status,
       screen: game.status === 'lobby' ? 'lobby' : 'word',
     };
 
     if (game.status === 'playing' && game.currentRound) {
       const round = game.currentRound;
-      const assignment = round.assignmentsByName?.[(player.name || '').toLowerCase()]
-        || round.assignments[oldId]
-        || round.assignments[socket.id];
-      if (assignment) {
-        const payload = {
-          turnOrderText: assignment.turnOrderText,
-          turnOrder: assignment.turnOrder,
-          totalPlayers: game.players.length,
-          roundVariant: assignment.roundVariant,
-          word: assignment.isImposter ? `${assignment.category}\n\nIMPOSTER` : assignment.word,
-          isImposter: assignment.isImposter,
-        };
-        socket.emit('your-word', payload);
+      const playingCount = getPlayingCount(game);
+      if (game.isCustom && isHost) {
+        socket.emit('host-round-ready', {
+          category: round.category,
+          word: round.word,
+          totalPlayers: playingCount,
+        });
+      } else {
+        const assignment = round.assignmentsByName?.[(player.name || '').toLowerCase()]
+          || round.assignments[oldId]
+          || round.assignments[socket.id];
+        if (assignment) {
+          const payload = {
+            turnOrderText: assignment.turnOrderText,
+            turnOrder: assignment.turnOrder,
+            totalPlayers: playingCount,
+            roundVariant: assignment.roundVariant,
+            word: assignment.isImposter ? `${assignment.category}\n\nIMPOSTER` : assignment.word,
+            isImposter: assignment.isImposter,
+          };
+          socket.emit('your-word', payload);
+        }
       }
       if (game.votePhase === 'voting') {
         socket.emit('vote-started', { players: game.players });
         if (game.votes) {
           const vc = getVotedCount(game);
-          socket.emit('vote-received', { votedCount: vc, totalPlayers: game.players.length });
+          socket.emit('vote-received', { votedCount: vc, totalPlayers: playingCount });
         }
       } else if (game.votePhase === 'revealed' && game.lastReveal) {
         socket.emit('imposter-revealed', game.lastReveal);
@@ -488,6 +584,8 @@ io.on('connection', (socket) => {
       playerId: socket.id,
       players: game.players,
       code: game.code,
+      isCustom: game.isCustom,
+      hostId: game.hostId,
     });
     io.to(game.code).emit('player-joined', { players: game.players });
   });
@@ -495,6 +593,15 @@ io.on('connection', (socket) => {
   socket.on('start-game', ({ gameId }) => {
     const game = games.get(gameId);
     if (!game || game.hostId !== socket.id) return;
+    if (game.isCustom) {
+      if (game.players.length < 3) {
+        socket.emit('start-error', { message: 'Custom games need at least 3 players (host + 2 players)!' });
+        return;
+      }
+      game.status = 'playing';
+      io.to(game.code).emit('game-started', { players: game.players, isCustom: true, needsSetup: true });
+      return;
+    }
     if (game.players.length < 4) {
       socket.emit('start-error', { message: 'Need at least 4 players to start!' });
       return;
@@ -582,7 +689,7 @@ io.on('connection', (socket) => {
     if (!game || game.hostId !== socket.id || game.status !== 'playing' || !game.currentRound) return;
     game.votePhase = 'voting';
     game.votes = {};
-    io.to(game.code).emit('vote-started', { players: game.players });
+    io.to(game.code).emit('vote-started', { players: game.players, totalPlayers: getPlayingCount(game) });
   });
 
   // Any player submits their vote (multiple player IDs and/or no-imposter)
@@ -591,6 +698,7 @@ io.on('connection', (socket) => {
     if (!game || game.status !== 'playing' || game.votePhase !== 'voting') return;
     const player = game.players.find((p) => p.id === socket.id);
     if (!player) return;
+    if (game.isCustom && player.id === game.hostId) return;
 
     const vote = noImposter
       ? '__no_imposter__'
@@ -602,7 +710,7 @@ io.on('connection', (socket) => {
     game.votes[socket.id] = vote;
 
     const votedCount = getVotedCount(game);
-    io.to(game.code).emit('vote-received', { votedCount, totalPlayers: game.players.length });
+    io.to(game.code).emit('vote-received', { votedCount, totalPlayers: getPlayingCount(game) });
   });
 
   // Host reveals imposter after everyone has voted
@@ -633,7 +741,7 @@ io.on('connection', (socket) => {
       }
 
       const round = game.currentRound;
-      const totalPlayers = game.players.length;
+      const totalPlayers = getPlayingCount(game);
       const votedCount = getVotedCount(game);
       if (votedCount < totalPlayers) {
         console.log('[reveal-imposter] rejected: waiting for votes', { votedCount, totalPlayers });

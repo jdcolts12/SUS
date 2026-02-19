@@ -3,6 +3,8 @@ import { io } from 'socket.io-client';
 import Home from './screens/Home';
 import Lobby from './screens/Lobby';
 import YourWord from './screens/YourWord';
+import HostSetup from './screens/HostSetup';
+import HostObserver from './screens/HostObserver';
 import Profile from './screens/Profile';
 import EditProfile from './screens/EditProfile';
 import Friends from './screens/Friends';
@@ -48,12 +50,15 @@ function App() {
     playerId: null,
     players: [],
     isHost: false,
+    isCustom: false,
+    hostId: null,
   });
   const [playerName, setPlayerName] = useState('');
   const [wordData, setWordData] = useState(null);
   const [votePhase, setVotePhase] = useState(null);
   const [votedCount, setVotedCount] = useState(0);
   const [revealData, setRevealData] = useState(null);
+  const [hostRoundReady, setHostRoundReady] = useState(null);
   const [error, setError] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [disconnected, setDisconnected] = useState(false);
@@ -132,6 +137,8 @@ function App() {
               playerId: s.id,
               players: res.players || prev.players,
               isHost: res.isHost ?? prev.isHost,
+              isCustom: res.isCustom ?? prev.isCustom,
+              hostId: res.hostId ?? prev.hostId,
             }));
             if (res.screen === 'lobby') {
               setScreen('lobby');
@@ -144,8 +151,8 @@ function App() {
       }
     });
 
-    s.on('game-created', ({ code, gameId, playerId, players }) => {
-      setGameState({ code, gameId, playerId, players, isHost: true });
+    s.on('game-created', ({ code, gameId, playerId, players, isCustom }) => {
+      setGameState({ code, gameId, playerId, players, isHost: true, isCustom: !!isCustom });
       try {
         sessionStorage.setItem('sus_game', JSON.stringify({ gameId, code }));
         const pn = playerNameRef.current;
@@ -154,13 +161,15 @@ function App() {
       setScreen('lobby');
     });
 
-    s.on('joined-game', ({ gameId, playerId, players, code }) => {
+    s.on('joined-game', ({ gameId, playerId, players, code, isCustom, hostId }) => {
       setGameState((prev) => ({
         ...prev,
         gameId,
         playerId,
         players: players || [],
         isHost: false,
+        isCustom: !!isCustom,
+        hostId: hostId || prev.hostId,
         code: code || prev.code,
       }));
       try {
@@ -208,12 +217,20 @@ function App() {
       setRevealData(data);
     });
 
-    s.on('game-started', () => {
+    s.on('game-started', ({ isCustom, needsSetup } = {}) => {
+      if (isCustom && needsSetup) setScreen('host-setup');
       // Word is sent separately via your-word
     });
 
     s.on('round-started', () => {
       // New round - word will come via your-word
+    });
+
+    s.on('host-round-ready', (data) => {
+      setHostRoundReady(data);
+      setVotePhase(null);
+      setRevealData(null);
+      setScreen('host-observer');
     });
 
     s.on('start-error', ({ message }) => {
@@ -334,7 +351,7 @@ function App() {
     } catch (_) {}
   };
 
-  const createGame = (name) => {
+  const createGame = (name, isCustom = false) => {
     if (!socket) {
       setError('Loading... try again in a moment.');
       return;
@@ -344,7 +361,7 @@ function App() {
       sessionStorage.removeItem('sus_game');
     } catch (_) {}
     wakeServerThenConnect(() => {
-      socket.emit('create-game', { playerName: name, userId: userId || undefined });
+      socket.emit('create-game', { playerName: name, userId: userId || undefined, isCustom: !!isCustom });
     });
   };
 
@@ -365,10 +382,11 @@ function App() {
       sessionStorage.removeItem('sus_game');
       sessionStorage.removeItem('sus_playerName');
     } catch (_) {}
-    setGameState({ code: null, gameId: null, playerId: null, players: [], isHost: false });
+    setGameState({ code: null, gameId: null, playerId: null, players: [], isHost: false, isCustom: false });
     setWordData(null);
     setVotePhase(null);
     setRevealData(null);
+    setHostRoundReady(null);
     setPlayerName('');
     setScreen('home');
     const friendly = /player not found/i.test(msg || '')
@@ -407,7 +425,9 @@ function App() {
       api.startGame(gameId, code, playerName)
         .then((data) => {
           setError('');
-          if (data?.word !== undefined) {
+          if (data?.isCustom && data?.needsSetup) {
+            setScreen('host-setup');
+          } else if (data?.word !== undefined) {
             setWordData({
               word: data.word,
               turnOrderText: data.turnOrderText,
@@ -432,6 +452,13 @@ function App() {
   };
 
   const newRound = () => {
+    if (gameState.isCustom && gameState.isHost) {
+      setHostRoundReady(null);
+      setVotePhase(null);
+      setRevealData(null);
+      setScreen('host-setup');
+      return;
+    }
     if (!socket) { setError('Loading... try again in a moment.'); return; }
     if (!socket?.connected) retryConnection();
     const { gameId, code, playerName } = getGameCreds();
@@ -637,9 +664,74 @@ function App() {
           code={gameState.code}
           players={gameState.players}
           isHost={gameState.isHost}
+          isCustom={gameState.isCustom}
           playerName={playerName}
           onStartGame={startGame}
           error={error?.includes("Can't reach server") ? null : error}
+        />
+      </>
+    );
+  }
+
+  if (screen === 'host-setup') {
+    const { gameId, code, players } = gameState;
+    return (
+      <>
+        {disconnected && (
+          <div className="app__reconnect" role="alert">
+            Connection lost.{' '}
+            <button type="button" className="app__reconnect-btn" onClick={retryConnection} disabled={connecting}>
+              {connecting ? 'Reconnecting…' : 'Tap to retry'}
+            </button>
+          </div>
+        )}
+        <HostSetup
+          gameId={gameId}
+          code={code}
+          playerName={playerName}
+          players={players}
+          onRoundStarted={() => {}}
+          onBackToLobby={() => { setScreen('lobby'); setError(''); }}
+          error={error}
+          onClearError={() => setError('')}
+          onError={(msg) => setError(msg)}
+        />
+      </>
+    );
+  }
+
+  if (screen === 'host-observer' && hostRoundReady) {
+    const { gameId, code, players, playerId } = gameState;
+    return (
+      <>
+        {disconnected && (
+          <div className="app__reconnect" role="alert">
+            Connection lost.{' '}
+            <button type="button" className="app__reconnect-btn" onClick={retryConnection} disabled={connecting}>
+              {connecting ? 'Reconnecting…' : 'Tap to retry'}
+            </button>
+          </div>
+        )}
+        <HostObserver
+          category={hostRoundReady.category}
+          word={hostRoundReady.word}
+          totalPlayers={hostRoundReady.totalPlayers || 0}
+          players={players}
+          playerId={playerId}
+          gameId={gameId}
+          gameCode={code}
+          playerName={playerName}
+          votePhase={votePhase}
+          votedCount={votedCount}
+          revealData={revealData}
+          onStartVote={startVote}
+          isStartingVote={isStartingVote}
+          onNewRound={newRound}
+          onBackToLobby={() => { setScreen('lobby'); setHostRoundReady(null); setVotePhase(null); setRevealData(null); setError(''); }}
+          error={error}
+          onClearError={() => setError('')}
+          onRetryConnection={retryConnection}
+          socket={socket}
         />
       </>
     );
@@ -665,6 +757,8 @@ function App() {
         roundVariant={wordData.roundVariant || 'normal'}
         onNewRound={newRound}
         isHost={gameState.isHost}
+        isCustom={gameState.isCustom}
+        hostId={gameState.hostId}
         onBackToLobby={backToLobby}
         players={gameState.players}
         playerId={gameState.playerId}
