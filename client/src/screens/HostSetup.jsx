@@ -7,6 +7,7 @@ function HostSetup({
   playerName,
   players,
   onRoundStarted,
+  onHostRoundReady,
   onBackToLobby,
   error,
   onClearError,
@@ -26,13 +27,15 @@ function HostSetup({
     setSubmitting(true);
     onClearError?.();
     api.customRound(gameId, code, playerName, categoryTrim, wordTrim)
-      .then(() => {
+      .then((data) => {
+        if (data?.hostRoundReady) {
+          onHostRoundReady?.(data.hostRoundReady);
+        }
         onRoundStarted?.();
       })
       .catch((err) => {
         setSubmitting(false);
-        const msg = err?.message || 'Failed to start round.';
-        onError?.(msg);
+        onError?.(err?.message || 'Failed to start round.');
       })
       .finally(() => setSubmitting(false));
   };
@@ -42,6 +45,17 @@ function HostSetup({
       <h2 className="host-setup__title">Custom Round</h2>
       <p className="host-setup__hint">Type the category and word for this round. You won&apos;t play—you&apos;re the host.</p>
       <p className="host-setup__players">{playingCount} player{playingCount !== 1 ? 's' : ''} will play</p>
+
+      {error && (
+        <p className="host-setup__error" role="alert">
+          {error}
+          {onClearError && (
+            <button type="button" className="host-setup__error-dismiss" onClick={onClearError} aria-label="Dismiss">
+              ✕
+            </button>
+          )}
+        </p>
+      )}
 
       <form className="host-setup__form" onSubmit={handleStartRound}>
         <label className="host-setup__label">
@@ -73,14 +87,14 @@ function HostSetup({
         <button
           type="submit"
           className="btn btn--primary host-setup__submit"
-          disabled={!wordTrim || !categoryTrim || submitting || playingCount < 2}
+          disabled={!wordTrim || !categoryTrim || submitting || playingCount < 1}
         >
           {submitting ? 'Starting…' : 'Start Round'}
         </button>
       </form>
 
-      {playingCount < 2 && (
-        <p className="host-setup__need">Need at least 2 players (excluding you) to start a round.</p>
+      {playingCount < 1 && (
+        <p className="host-setup__need">Need at least 1 other player to start a round.</p>
       )}
 
       <button type="button" className="btn btn--ghost host-setup__back" onClick={onBackToLobby}>

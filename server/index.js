@@ -361,8 +361,8 @@ app.post('/api/custom-round', (req, res) => {
     game.votePhase = null;
     game.votes = null;
     const playerIds = game.players.filter((p) => p.id !== game.hostId).map((p) => p.id);
-    if (playerIds.length < 2) {
-      return res.status(400).json({ ok: false, error: 'Need at least 2 players (excluding host) for a round!' });
+    if (playerIds.length < 1) {
+      return res.status(400).json({ ok: false, error: 'Need at least 1 other player to start a round!' });
     }
     const recentRounds = [game.currentRound, ...(game.roundHistory || [])].filter(Boolean).slice(-10);
     const round = createRoundCustom(categoryTrim, wordTrim, playerIds, recentRounds);
@@ -393,7 +393,11 @@ app.post('/api/custom-round', (req, res) => {
       }
     });
     io.to(game.code).emit('round-started');
-    res.json({ ok: true, isHost: true });
+    res.json({
+      ok: true,
+      isHost: true,
+      hostRoundReady: { category: categoryTrim, word: wordTrim, totalPlayers: playingCount },
+    });
   } catch (err) {
     console.error('[custom-round HTTP]', err);
     res.status(500).json({ ok: false, error: err?.message || 'Custom round failed.' });

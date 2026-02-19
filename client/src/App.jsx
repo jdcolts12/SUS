@@ -674,7 +674,8 @@ function App() {
   }
 
   if (screen === 'host-setup') {
-    const { gameId, code, players } = gameState;
+    const { players } = gameState;
+    const { gameId, code, playerName: pn } = getGameCreds();
     return (
       <>
         {disconnected && (
@@ -688,9 +689,15 @@ function App() {
         <HostSetup
           gameId={gameId}
           code={code}
-          playerName={playerName}
+          playerName={pn || playerName}
           players={players}
           onRoundStarted={() => {}}
+          onHostRoundReady={(data) => {
+            setHostRoundReady(data);
+            setVotePhase(null);
+            setRevealData(null);
+            setScreen('host-observer');
+          }}
           onBackToLobby={() => { setScreen('lobby'); setError(''); }}
           error={error}
           onClearError={() => setError('')}
