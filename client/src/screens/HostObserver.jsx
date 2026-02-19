@@ -127,7 +127,7 @@ function HostObserver({
             <p className="host-observer__result">No imposter – crew wins!</p>
           ) : (
             <p className="host-observer__result">
-              {revealData.imposterNames?.join(' & ')} {revealData.teamWon ? '– Crew wins!' : '– Imposter wins!'}
+              {revealData.imposterNames?.join(' & ')} {revealData.teamWon ? '– Crew wins!' : revealData.survivingImposterName ? `– ${revealData.survivingImposterName} wins!` : '– Imposter wins!'}
             </p>
           )}
         </div>

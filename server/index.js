@@ -137,12 +137,15 @@ app.post('/api/reveal-imposter', (req, res) => {
     const votedWasImposter = votedPlayerId ? (round.imposterIds.includes(votedPlayerId) || (votedPlayerName && imposterNames.some((n) => (n || '').toLowerCase() === (votedPlayerName || '').toLowerCase()))) : false;
     const voteTied = tied.length > 1;
     const teamWon = votedPlayerId
-      ? votedWasImposter
+      ? (votedWasImposter && round.roundVariant !== 'two_imposters') // two imposters: crew must vote both out; voting only one = imposters win
       : (voteTied && tied.some(([id]) => round.imposterIds.includes(id) || isImposterByName(id)))
         ? true
         : (round.roundVariant === 'no_imposter');
     recordRoundResults(game, round, votedPlayerId, votedWasImposter, teamWon);
     game.votePhase = 'revealed';
+    const survivingImposter = round.roundVariant === 'two_imposters' && votedWasImposter && votedPlayerId
+      ? game.players.find((p) => round.imposterIds.includes(p.id) && p.id !== votedPlayerId)?.name
+      : null;
     const payload = {
       imposterIds: round.imposterIds,
       imposterNames,
@@ -151,6 +154,7 @@ app.post('/api/reveal-imposter', (req, res) => {
       voteTied,
       wasImposter: votedWasImposter,
       teamWon,
+      survivingImposterName: survivingImposter || undefined,
       category: round.category,
       word: round.word,
       noImposterRound: round.roundVariant === 'no_imposter',
@@ -781,7 +785,7 @@ io.on('connection', (socket) => {
       const votedWasImposter = votedPlayerId ? (round.imposterIds.includes(votedPlayerId) || (votedPlayerName && imposterNames.some((n) => (n || '').toLowerCase() === (votedPlayerName || '').toLowerCase()))) : false;
       const voteTied = tied.length > 1;
       const teamWon = votedPlayerId
-        ? votedWasImposter
+        ? (votedWasImposter && round.roundVariant !== 'two_imposters')
         : (voteTied && tied.some(([id]) => round.imposterIds.includes(id) || isImposterByName(id)))
           ? true
           : (round.roundVariant === 'no_imposter');
@@ -789,6 +793,9 @@ io.on('connection', (socket) => {
       recordRoundResults(game, round, votedPlayerId, votedWasImposter, teamWon);
       game.votePhase = 'revealed';
 
+      const survivingImposter = round.roundVariant === 'two_imposters' && votedWasImposter && votedPlayerId
+        ? game.players.find((p) => round.imposterIds.includes(p.id) && p.id !== votedPlayerId)?.name
+        : null;
       const payload = {
         imposterIds: round.imposterIds,
         imposterNames,
@@ -797,6 +804,7 @@ io.on('connection', (socket) => {
         voteTied,
         wasImposter: votedWasImposter,
         teamWon,
+        survivingImposterName: survivingImposter || undefined,
         category: round.category,
         word: round.word,
         noImposterRound: round.roundVariant === 'no_imposter',

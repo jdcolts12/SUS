@@ -279,11 +279,13 @@ function YourWord({
                         ? 'Crew wins!'
                         : revealData.voteTied
                           ? (revealData.teamWon ? 'Tie! Crew wins!' : 'Tie! Imposters win!')
-                          : (() => {
-                              const names = revealData.imposterNames?.filter(Boolean) || [];
-                              const text = names.join(' & ') || 'The imposters';
-                              return names.length === 1 ? `${text} wins!` : `${text} win!`;
-                            })()}
+                          : revealData.survivingImposterName
+                            ? `${revealData.survivingImposterName} wins!`
+                            : (() => {
+                                const names = revealData.imposterNames?.filter(Boolean) || [];
+                                const text = names.join(' & ') || 'The imposters';
+                                return names.length === 1 ? `${text} wins!` : `${text} win!`;
+                              })()}
                     </p>
                   </>
                 )}
@@ -306,11 +308,13 @@ function YourWord({
                       ? 'Crew wins!'
                       : revealData.voteTied
                         ? (revealData.teamWon ? 'Tie! Crew wins!' : 'Tie! Imposters win!')
-                        : (() => {
-                            const names = revealData.imposterNames?.filter(Boolean) || [];
-                            const text = names.join(' & ') || 'The imposters';
-                            return names.length === 1 ? `${text} wins!` : `${text} win!`;
-                          })()}
+                        : revealData.survivingImposterName
+                          ? `${revealData.survivingImposterName} wins!`
+                          : (() => {
+                              const names = revealData.imposterNames?.filter(Boolean) || [];
+                              const text = names.join(' & ') || 'The imposters';
+                              return names.length === 1 ? `${text} wins!` : `${text} win!`;
+                            })()}
                   </p>
                 )}
                 {revealData.category && (
