@@ -15,11 +15,14 @@ app.use(express.json({ limit: '5mb' }));
 // Health check for Railway/deployment
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-// Categories + words for custom game host (must be before /api router)
+// Categories + words for custom game host
 app.get('/api/categories', (req, res) => {
   res.json({ categories: categoryNames, words: wordCategories });
 });
 
+// Game API router (mounted first so /api/custom-round etc. match before apiRouter)
+const gameApiRouter = express.Router();
+app.use('/api', gameApiRouter);
 app.use('/api', apiRouter);
 
 const httpServer = createServer(app);
@@ -85,7 +88,7 @@ const io = new Server(httpServer, {
 });
 
 // HTTP reveal fallback (reliable on mobile when Socket.IO drops)
-app.post('/api/reveal-imposter', (req, res) => {
+gameApiRouter.post('/reveal-imposter', (req, res) => {
   try {
     const { gameId, code, playerName } = req.body;
     if (!gameId || !code || !playerName) {
@@ -170,7 +173,7 @@ app.post('/api/reveal-imposter', (req, res) => {
 });
 
 // HTTP vote fallback (always works when socket is flaky)
-app.post('/api/submit-vote', (req, res) => {
+gameApiRouter.post('/submit-vote', (req, res) => {
   try {
     const { gameId, code, playerName, votedPlayerIds, noImposter } = req.body;
     if (!gameId || !code || !playerName) {
@@ -282,7 +285,7 @@ app.post('/api/start-game', (req, res) => {
   }
 });
 
-app.post('/api/new-round', (req, res) => {
+gameApiRouter.post('/new-round', (req, res) => {
   try {
     const { gameId, code, playerName } = req.body;
     if (!gameId || !code || !playerName) {
@@ -404,7 +407,7 @@ app.post('/api/custom-round', (req, res) => {
   }
 });
 
-app.post('/api/start-vote', (req, res) => {
+gameApiRouter.post('/start-vote', (req, res) => {
   try {
     const { gameId, code, playerName } = req.body;
     if (!gameId || !code || !playerName) {
