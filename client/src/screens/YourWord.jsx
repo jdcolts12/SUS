@@ -9,6 +9,7 @@ function YourWord({
   isImposter,
   roundVariant,
   onNewRound,
+  onNewCustomRound,
   isHost,
   isCustom,
   hostId,
@@ -440,9 +441,14 @@ function YourWord({
 
       <div className="word__actions">
         {isHost && votePhase === 'revealed' && (
-          <button type="button" className="btn btn--secondary" onClick={onNewRound}>
-            New Round
-          </button>
+          <>
+            <button type="button" className="btn btn--primary" onClick={onNewRound}>
+              New Round
+            </button>
+            <button type="button" className="btn btn--secondary" onClick={onNewCustomRound}>
+              New Custom Round
+            </button>
+          </>
         )}
         <button type="button" className="btn btn--ghost" onClick={onBackToLobby}>
           Back to Lobby

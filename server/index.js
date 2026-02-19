@@ -346,7 +346,7 @@ app.post('/api/custom-round', (req, res) => {
     }
     const player = game.players.find((p) => (p.name || '').toLowerCase().trim() === String(playerName || '').toLowerCase().trim());
     if (!player) return res.status(403).json({ ok: false, error: 'Player not found.' });
-    if (game.hostId !== player.id || !game.isCustom || game.status !== 'playing') {
+    if (game.hostId !== player.id || game.status !== 'playing') {
       return res.status(403).json({ ok: false, error: 'Only the host can set up a custom round.' });
     }
     const words = wordCategories[category];

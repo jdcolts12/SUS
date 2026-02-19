@@ -56,26 +56,22 @@ function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onLeaderb
         <p className="home__subtitle">One of you isn't who they seem</p>
       </div>
 
-      {!userId ? (
-        <div className="home__auth-gate">
-          <h3 className="home__auth-title">Sign in to play</h3>
-          <p className="home__auth-msg">Choose an option below:</p>
-          <div className="home__actions home__auth-buttons">
-            <button className="btn btn--primary btn--large" onClick={onSignUp}>
-              Create Account
-            </button>
-            <button className="btn btn--secondary btn--large" onClick={onSignIn}>
-              Sign In
-            </button>
-          </div>
-        </div>
-      ) : !mode ? (
+      {!userId && (
+        <p className="home__auth-hint">Sign in to save stats to your account</p>
+      )}
+      {!mode ? (
         <div className="home__actions">
           <button
             className="btn btn--primary"
-            onClick={() => setMode('create')}
+            onClick={() => { setMode('create'); setCreateAsCustom(false); }}
           >
             Create Game
+          </button>
+          <button
+            className="btn btn--secondary"
+            onClick={() => { setMode('create'); setCreateAsCustom(true); }}
+          >
+            Create Custom Game
           </button>
           <button
             className="btn btn--secondary"

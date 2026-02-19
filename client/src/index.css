@@ -447,6 +447,11 @@ button {
   font-size: 0.9rem;
   margin: 0 0 0.5rem;
 }
+.home__auth-hint {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
 
 /* Your Word */
 .word__error {

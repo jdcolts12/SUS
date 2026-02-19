@@ -451,14 +451,14 @@ function App() {
     }
   };
 
+  const newCustomRound = () => {
+    setHostRoundReady(null);
+    setVotePhase(null);
+    setRevealData(null);
+    setScreen('host-setup');
+  };
+
   const newRound = () => {
-    if (gameState.isCustom && gameState.isHost) {
-      setHostRoundReady(null);
-      setVotePhase(null);
-      setRevealData(null);
-      setScreen('host-setup');
-      return;
-    }
     if (!socket) { setError('Loading... try again in a moment.'); return; }
     if (!socket?.connected) retryConnection();
     const { gameId, code, playerName } = getGameCreds();
@@ -727,6 +727,7 @@ function App() {
           onStartVote={startVote}
           isStartingVote={isStartingVote}
           onNewRound={newRound}
+          onNewCustomRound={newCustomRound}
           onBackToLobby={() => { setScreen('lobby'); setHostRoundReady(null); setVotePhase(null); setRevealData(null); setError(''); }}
           error={error}
           onClearError={() => setError('')}
@@ -756,6 +757,7 @@ function App() {
         isImposter={wordData.isImposter}
         roundVariant={wordData.roundVariant || 'normal'}
         onNewRound={newRound}
+        onNewCustomRound={newCustomRound}
         isHost={gameState.isHost}
         isCustom={gameState.isCustom}
         hostId={gameState.hostId}

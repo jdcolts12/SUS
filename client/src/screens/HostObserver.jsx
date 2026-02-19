@@ -17,6 +17,7 @@ function HostObserver({
   isStartingVote,
   onRevealImposter,
   onNewRound,
+  onNewCustomRound,
   onBackToLobby,
   error,
   onClearError,
@@ -134,9 +135,14 @@ function HostObserver({
 
       <div className="host-observer__actions">
         {revealData && (
-          <button type="button" className="btn btn--secondary" onClick={onNewRound}>
-            New Round
-          </button>
+          <>
+            <button type="button" className="btn btn--primary" onClick={onNewRound}>
+              New Round
+            </button>
+            <button type="button" className="btn btn--secondary" onClick={onNewCustomRound}>
+              New Custom Round
+            </button>
+          </>
         )}
         <button type="button" className="btn btn--ghost" onClick={onBackToLobby}>
           Back to Lobby
