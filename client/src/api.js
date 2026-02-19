@@ -30,6 +30,9 @@ async function fetchApi(path, options = {}) {
     if (res.status === 404 && /game not found/i.test(msg)) {
       throw new Error('Game session ended (server may have restarted). Go back to lobby and create a new game.');
     }
+    if (res.status === 403 && /player not found/i.test(msg)) {
+      throw new Error('Your session may have changed. Go back to lobby and rejoin the game.');
+    }
     throw new Error(msg);
   }
   if (!contentType?.includes('application/json')) {
