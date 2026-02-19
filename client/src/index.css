@@ -399,13 +399,17 @@ button {
   gap: 0.5rem;
   font-size: 0.9rem;
 }
-.host-setup__select {
+.host-setup__select,
+.host-setup__input {
   padding: 0.75rem 1rem;
   background: var(--surface);
   border: 2px solid var(--surface-light);
   border-radius: 12px;
   color: var(--text);
   font-size: 1rem;
+}
+.host-setup__input::placeholder {
+  color: var(--text-muted);
 }
 .host-setup__submit { margin-top: 0.5rem; }
 .host-setup__back { margin-top: auto; }

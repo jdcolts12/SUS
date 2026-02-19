@@ -353,9 +353,10 @@ app.post('/api/custom-round', (req, res) => {
     if (game.hostId !== player.id || game.status !== 'playing') {
       return res.status(403).json({ ok: false, error: 'Only the host can set up a custom round.' });
     }
-    const words = wordCategories[category];
-    if (!Array.isArray(words) || !words.includes(word)) {
-      return res.status(400).json({ ok: false, error: 'Invalid category or word.' });
+    const categoryTrim = String(category || '').trim();
+    const wordTrim = String(word || '').trim();
+    if (!categoryTrim || !wordTrim) {
+      return res.status(400).json({ ok: false, error: 'Category and word are required.' });
     }
     game.votePhase = null;
     game.votes = null;
@@ -364,7 +365,7 @@ app.post('/api/custom-round', (req, res) => {
       return res.status(400).json({ ok: false, error: 'Need at least 2 players (excluding host) for a round!' });
     }
     const recentRounds = [game.currentRound, ...(game.roundHistory || [])].filter(Boolean).slice(-10);
-    const round = createRoundCustom(category, word, playerIds, recentRounds);
+    const round = createRoundCustom(categoryTrim, wordTrim, playerIds, recentRounds);
     round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
     round.assignmentsByName = {};
     game.players.forEach((p) => {
@@ -376,7 +377,7 @@ app.post('/api/custom-round', (req, res) => {
     const playingCount = getPlayingCount(game);
     game.players.forEach((p) => {
       if (p.id === game.hostId) {
-        io.to(p.id).emit('host-round-ready', { category, word, totalPlayers: playingCount });
+        io.to(p.id).emit('host-round-ready', { category: categoryTrim, word: wordTrim, totalPlayers: playingCount });
       } else {
         const a = round.assignments[p.id];
         if (a) {
