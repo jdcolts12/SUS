@@ -93,6 +93,42 @@ export const wordCategories = {
     "cycling", "karaoke", "meditation", "calligraphy", "magic tricks",
     "board games", "movie marathon", "stargazing", "travel", "journaling"
   ],
+  "Apps & Websites": [
+    "Instagram", "TikTok", "YouTube", "Spotify", "Netflix",
+    "Twitter", "Facebook", "Snapchat", "Pinterest", "LinkedIn",
+    "WhatsApp", "Discord", "Reddit", "Twitch", "Zoom",
+    "Uber", "DoorDash", "Venmo", "PayPal", "Amazon",
+    "Google", "Gmail", "Maps", "Weather app", "Notes",
+    "Calculator", "Calendar", "Camera", "Photos", "Safari",
+    "Chrome", "Wikipedia", "IMDb", "Craigslist", "Zillow",
+    "Yelp", "TripAdvisor", "Duolingo", "Headspace", "Strava",
+    "Kindle", "Audible", "Apple Music", "SoundCloud", "iMessage",
+    "Slack", "Teams", "Dropbox", "Canva", "Tinder",
+    "Hinge", "Bumble", "Grubhub", "Lyft", "Waze"
+  ],
+  "Sports Equipment": [
+    "football", "basketball", "soccer ball", "baseball", "tennis racket",
+    "golf club", "hockey stick", "skis", "snowboard", "bicycle",
+    "dumbbells", "yoga mat", "jump rope", "resistance bands", "kettlebell",
+    "punching bag", "boxing gloves", "helmet", "goggles", "life jacket",
+    "surfboard", "paddleboard", "kayak", "paddle", "rowing machine",
+    "treadmill", "elliptical", "pull-up bar", "foam roller", "medicine ball",
+    "frisbee", "spike ball", "badminton racket", "shuttlecock", "ping pong paddle",
+    "bowling ball", "darts", "lacrosse stick", "cricket bat", "wetsuit",
+    "running shoes", "cleats", "hiking boots", "weight belt", "wrist guards",
+    "elbow pads", "knee pads", "scuba tank", "snorkel", "polo mallet"
+  ],
+  "Bad Habits": [
+    "procrastination", "nail biting", "doom scrolling", "binge watching", "staying up late",
+    "oversleeping", "junk food", "interrupting people", "being late", "slouching",
+    "skipping workouts", "late night snacking", "overspending", "gossiping", "complaining",
+    "leaving dishes", "not making the bed", "road rage", "hoarding", "smoking",
+    "drinking too much", "overthinking", "perfectionism", "people pleasing", "ghosting",
+    "phone addiction", "mindless scrolling", "skipping meals", "caffeine addiction",
+    "clutter", "forgetting to floss", "hitting snooze", "multitasking", "overcommitting",
+    "avoiding conflict", "holding grudges", "negative self-talk", "impulse buying",
+    "eating in bed", "skipping sunscreen", "texting while walking", "leaving laundry"
+  ],
   "Everyday Objects": [
     "umbrella", "headphones", "water bottle", "charging cable", "keys",
     "scissors", "tape", "stapler", "paper clips", "coaster",
