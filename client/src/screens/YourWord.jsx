@@ -13,6 +13,7 @@ function YourWord({
   isHost,
   isCustom,
   hostId,
+  hostPlays,
   onBackToLobby,
   players = [],
   playerId,
@@ -142,7 +143,7 @@ function YourWord({
   };
 
   const otherPlayers = players.filter((p) =>
-    p.id !== playerId && (!isCustom || p.id !== hostId)
+    p.id !== playerId && (hostPlays || !isCustom || p.id !== hostId)
   );
   const everyoneVoted = votedCount >= totalPlayers && totalPlayers > 0;
 
@@ -297,6 +298,14 @@ function YourWord({
             <div className="word__recap">
               <h2 className="word__recap-title">Game Recap</h2>
               <div className="word__recap-stats">
+                <p className="word__recap-row">
+                  <span className="word__recap-label">Imposter(s)</span>
+                  <span className="word__recap-value">
+                    {revealData.noImposterRound
+                      ? 'No imposter'
+                      : (revealData.imposterNames?.filter(Boolean) || []).join(' & ') || '—'}
+                  </span>
+                </p>
                 <p className="word__recap-row">
                   <span className="word__recap-label">Voted out</span>
                   <span className="word__recap-value">{revealData.votedPlayerName || 'No one'}</span>

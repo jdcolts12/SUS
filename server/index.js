@@ -693,6 +693,7 @@ io.on('connection', (socket) => {
         turnOrder: a.turnOrder,
         totalPlayers: game.players.length,
         roundVariant: a.roundVariant,
+        hostPlays: true,
       };
       if (a.isImposter) {
         payload.word = `${a.category}\n\nIMPOSTER`;

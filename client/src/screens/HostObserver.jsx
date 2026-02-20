@@ -124,6 +124,9 @@ function HostObserver({
       {revealData && (
         <div className="host-observer__recap">
           <h3>Round Over</h3>
+          <p className="host-observer__imposter">
+            Imposter(s): {revealData.noImposterRound ? 'No imposter' : (revealData.imposterNames?.filter(Boolean) || []).join(' & ') || '—'}
+          </p>
           <p className="host-observer__voted">
             Voted out: {revealData.votedPlayerName || 'No one'}
           </p>

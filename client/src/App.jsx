@@ -775,6 +775,7 @@ function App() {
         isHost={gameState.isHost}
         isCustom={gameState.isCustom}
         hostId={gameState.hostId}
+        hostPlays={wordData.hostPlays}
         onBackToLobby={backToLobby}
         players={gameState.players}
         playerId={gameState.playerId}
