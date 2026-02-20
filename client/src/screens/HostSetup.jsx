@@ -19,6 +19,7 @@ function HostSetup({
   const [submitting, setSubmitting] = useState(false);
 
   const playingCount = Math.max(0, (players?.length || 1) - 1);
+  const allPlayersCount = players?.length || 0;
   const categoryTrim = category?.trim() || '';
   const wordTrim = word?.trim() || '';
 
@@ -68,11 +69,43 @@ function HostSetup({
       .finally(() => setSubmitting(false));
   };
 
+  const handleAutoGenerate = () => {
+    if (submitting || !socket?.connected || !gameId) return;
+    if (allPlayersCount < 4) {
+      onError?.('Need at least 4 players for auto-generate (you play too).');
+      return;
+    }
+    setSubmitting(true);
+    onClearError?.();
+    let done = false;
+    const t = setTimeout(() => {
+      if (!done) {
+        done = true;
+        setSubmitting(false);
+        onError?.('Start round timed out. Try again.');
+      }
+    }, 15000);
+    socket.emit('start-custom-random-round', { gameId }, (res) => {
+      if (done) return;
+      done = true;
+      clearTimeout(t);
+      setSubmitting(false);
+      if (res?.ok) {
+        onRoundStarted?.();
+      } else {
+        onError?.(res?.error || 'Failed to start round.');
+      }
+    });
+  };
+
   return (
     <div className="host-setup">
-      <h2 className="host-setup__title">Custom Round</h2>
-      <p className="host-setup__hint">Type the category and word for this round. You won&apos;t play—you&apos;re the host.</p>
-      <p className="host-setup__players">{playingCount} player{playingCount !== 1 ? 's' : ''} will play</p>
+      <h2 className="host-setup__title">Choose Round Type</h2>
+      <p className="host-setup__hint">Pick a custom word (you observe) or auto-generate (you play).</p>
+
+      <div className="host-setup__section">
+        <h3 className="host-setup__subtitle">Custom word</h3>
+        <p className="host-setup__players">{playingCount} player{playingCount !== 1 ? 's' : ''} will play (you observe)</p>
 
       {error && (
         <p className="host-setup__error" role="alert">
@@ -119,11 +152,29 @@ function HostSetup({
         >
           {submitting ? 'Starting…' : 'Start Round'}
         </button>
+        {playingCount < 1 && (
+          <p className="host-setup__need">Need at least 1 other player.</p>
+        )}
       </form>
+      </div>
 
-      {playingCount < 1 && (
-        <p className="host-setup__need">Need at least 1 other player to start a round.</p>
-      )}
+      <div className="host-setup__divider">— or —</div>
+
+      <div className="host-setup__section">
+        <h3 className="host-setup__subtitle">Auto generate word</h3>
+        <p className="host-setup__hint host-setup__hint--muted">Random word from the list. You play this round!</p>
+        <button
+          type="button"
+          className="btn btn--secondary host-setup__auto"
+          onClick={handleAutoGenerate}
+          disabled={submitting || allPlayersCount < 4}
+        >
+          {submitting ? 'Starting…' : 'Auto Generate'}
+        </button>
+        {allPlayersCount < 4 && (
+          <p className="host-setup__need">Need at least 4 players (including you).</p>
+        )}
+      </div>
 
       <button type="button" className="btn btn--ghost host-setup__back" onClick={onBackToLobby}>
         Back to Lobby

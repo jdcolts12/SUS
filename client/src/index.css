@@ -411,6 +411,11 @@ button {
 .host-setup__input::placeholder {
   color: var(--text-muted);
 }
+.host-setup__section { margin-bottom: 1.5rem; }
+.host-setup__subtitle { font-size: 1rem; font-weight: 600; margin: 0 0 0.5rem; }
+.host-setup__divider { text-align: center; color: var(--text-muted); margin: 1rem 0; font-size: 0.9rem; }
+.host-setup__hint--muted { font-size: 0.9rem; margin-top: 0; }
+.host-setup__auto { margin-top: 0.5rem; }
 .host-setup__submit { margin-top: 0.5rem; }
 .host-setup__back { margin-top: auto; }
 .host-setup__loading { color: var(--text-muted); }

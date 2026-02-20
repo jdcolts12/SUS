@@ -98,11 +98,17 @@ const roomCodes = new Map();
 const disconnectTimeouts = new Map();
 
 function getPlayingCount(game) {
-  return game.isCustom ? Math.max(0, game.players.length - 1) : game.players.length;
+  // In custom games, host only plays when current round has hostPlays (auto-generate)
+  if (game.isCustom && !game.currentRound?.hostPlays) {
+    return Math.max(0, game.players.length - 1);
+  }
+  return game.players.length;
 }
 
 function getVotedCount(game) {
-  const voters = game.isCustom ? game.players.filter((p) => p.id !== game.hostId) : game.players;
+  const voters = (game.isCustom && !game.currentRound?.hostPlays)
+    ? game.players.filter((p) => p.id !== game.hostId)
+    : game.players;
   return voters.filter(
     (p) => game.votes?.[p.id] !== undefined || game.votes?.[`__http__${p.name}`] !== undefined
   ).length;
@@ -138,7 +144,7 @@ function isVoteCorrect(game, round, player, votedPlayerId, votedWasImposter, tea
 function recordRoundResults(game, round, votedPlayerId, votedWasImposter, teamWon) {
   game.players.forEach((p) => {
     if (!p.userId) return;
-    if (game.isCustom && p.id === game.hostId) return;
+    if (game.isCustom && p.id === game.hostId && !round?.hostPlays) return;
     const wasImposter = round.imposterIds.includes(p.id);
     const won = wasImposter ? !votedWasImposter : teamWon;
     const voteCorrect = isVoteCorrect(game, round, p, votedPlayerId, votedWasImposter, teamWon);
@@ -656,6 +662,51 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('start-custom-random-round', ({ gameId }, ack) => {
+    const game = games.get(gameId);
+    if (!game || game.hostId !== socket.id || game.status !== 'playing') {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Game not found.' });
+      return;
+    }
+    if (game.players.length < 4) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Need at least 4 players for auto-generate (you play too).' });
+      return;
+    }
+    game.votePhase = null;
+    game.votes = null;
+    const playerIds = game.players.map((p) => p.id);
+    const recentRounds = [game.currentRound, ...(game.roundHistory || [])].filter(Boolean).slice(-10);
+    const round = createRound(playerIds, recentRounds);
+    round.hostPlays = true;
+    round.imposterNames = round.imposterIds.map((id) => game.players.find((p) => p.id === id)?.name).filter(Boolean);
+    round.assignmentsByName = {};
+    game.players.forEach((p) => {
+      const a = round.assignments[p.id];
+      if (a) round.assignmentsByName[(p.name || '').toLowerCase()] = a;
+    });
+    if (game.currentRound) game.roundHistory = [...(game.roundHistory || []), game.currentRound].slice(-10);
+    game.currentRound = round;
+    game.players.forEach((p) => {
+      const a = round.assignments[p.id];
+      const payload = {
+        turnOrderText: a.turnOrderText,
+        turnOrder: a.turnOrder,
+        totalPlayers: game.players.length,
+        roundVariant: a.roundVariant,
+      };
+      if (a.isImposter) {
+        payload.word = `${a.category}\n\nIMPOSTER`;
+        payload.isImposter = true;
+      } else {
+        payload.word = a.word;
+        payload.isImposter = false;
+      }
+      io.to(p.id).emit('your-word', payload);
+    });
+    io.to(game.code).emit('round-started');
+    if (typeof ack === 'function') ack({ ok: true });
+  });
+
   socket.on('start-custom-round', ({ gameId, category, word }, ack) => {
     const game = games.get(gameId);
     if (!game || game.hostId !== socket.id || game.status !== 'playing') {
@@ -764,7 +815,7 @@ io.on('connection', (socket) => {
     if (!game || game.status !== 'playing' || game.votePhase !== 'voting') return;
     const player = game.players.find((p) => p.id === socket.id);
     if (!player) return;
-    if (game.isCustom && player.id === game.hostId) return;
+    if (game.isCustom && player.id === game.hostId && !game.currentRound?.hostPlays) return;
 
     const vote = noImposter
       ? '__no_imposter__'
