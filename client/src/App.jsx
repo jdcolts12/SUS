@@ -57,6 +57,7 @@ function App() {
   const [wordData, setWordData] = useState(null);
   const [votePhase, setVotePhase] = useState(null);
   const [votedCount, setVotedCount] = useState(0);
+  const [votedPlayerNames, setVotedPlayerNames] = useState([]);
   const [revealData, setRevealData] = useState(null);
   const [hostRoundReady, setHostRoundReady] = useState(null);
   const [error, setError] = useState('');
@@ -205,10 +206,12 @@ function App() {
     s.on('vote-started', () => {
       setVotePhase('voting');
       setVotedCount(0);
+      setVotedPlayerNames([]);
     });
 
-    s.on('vote-received', ({ votedCount: n, totalPlayers }) => {
+    s.on('vote-received', ({ votedCount: n, totalPlayers, votedPlayerNames: names }) => {
       setVotedCount(n);
+      setVotedPlayerNames(Array.isArray(names) ? names : []);
     });
 
     s.on('imposter-revealed', (data) => {
@@ -736,6 +739,7 @@ function App() {
           playerName={playerName}
           votePhase={votePhase}
           votedCount={votedCount}
+          votedPlayerNames={votedPlayerNames}
           revealData={revealData}
           onStartVote={startVote}
           isStartingVote={isStartingVote}
@@ -781,6 +785,7 @@ function App() {
         playerId={gameState.playerId}
         votePhase={votePhase}
         votedCount={votedCount}
+        votedPlayerNames={votedPlayerNames}
         revealData={revealData}
         onStartVote={startVote}
         isStartingVote={isStartingVote}

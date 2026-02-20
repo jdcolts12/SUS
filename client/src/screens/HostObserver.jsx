@@ -12,6 +12,7 @@ function HostObserver({
   playerName,
   votePhase,
   votedCount,
+  votedPlayerNames = [],
   revealData,
   onStartVote,
   isStartingVote,
@@ -110,6 +111,9 @@ function HostObserver({
       {votePhase === 'voting' && (
         <div className="host-observer__voting">
           <p>Votes: {votedCount}/{totalPlayers}</p>
+          {votedPlayerNames.length > 0 && (
+            <p className="host-observer__voters">Voted: {votedPlayerNames.join(', ')}</p>
+          )}
           <button
             type="button"
             className="btn btn--primary"

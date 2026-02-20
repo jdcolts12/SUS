@@ -114,6 +114,16 @@ function getVotedCount(game) {
   ).length;
 }
 
+function getVotedPlayerNames(game) {
+  const voters = (game.isCustom && !game.currentRound?.hostPlays)
+    ? game.players.filter((p) => p.id !== game.hostId)
+    : game.players;
+  return voters
+    .filter((p) => game.votes?.[p.id] !== undefined || game.votes?.[`__http__${p.name}`] !== undefined)
+    .map((p) => p.name)
+    .filter(Boolean);
+}
+
 function getVotesForTally(game) {
   const out = [];
   game.players.forEach((p) => {
@@ -281,7 +291,11 @@ gameApiRouter.post('/submit-vote', (req, res) => {
     delete game.votes[`__http__${player.name}`];
     game.votes[`__http__${player.name}`] = vote;
     const votedCount = getVotedCount(game);
-    io.to(game.code).emit('vote-received', { votedCount, totalPlayers: getPlayingCount(game) });
+    io.to(game.code).emit('vote-received', {
+      votedCount,
+      totalPlayers: getPlayingCount(game),
+      votedPlayerNames: getVotedPlayerNames(game),
+    });
     res.json({ ok: true, votedCount });
   } catch (err) {
     console.error('[submit-vote HTTP]', err);
@@ -566,7 +580,11 @@ io.on('connection', (socket) => {
         socket.emit('vote-started', { players: game.players });
         if (game.votes) {
           const vc = getVotedCount(game);
-          socket.emit('vote-received', { votedCount: vc, totalPlayers: playingCount });
+          socket.emit('vote-received', {
+            votedCount: vc,
+            totalPlayers: playingCount,
+            votedPlayerNames: getVotedPlayerNames(game),
+          });
         }
       } else if (game.votePhase === 'revealed' && game.lastReveal) {
         socket.emit('imposter-revealed', game.lastReveal);
@@ -828,7 +846,11 @@ io.on('connection', (socket) => {
     game.votes[socket.id] = vote;
 
     const votedCount = getVotedCount(game);
-    io.to(game.code).emit('vote-received', { votedCount, totalPlayers: getPlayingCount(game) });
+    io.to(game.code).emit('vote-received', {
+      votedCount,
+      totalPlayers: getPlayingCount(game),
+      votedPlayerNames: getVotedPlayerNames(game),
+    });
   });
 
   // Host reveals imposter after everyone has voted

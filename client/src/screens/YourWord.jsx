@@ -19,6 +19,7 @@ function YourWord({
   playerId,
   votePhase,
   votedCount,
+  votedPlayerNames = [],
   revealData,
   onStartVote,
   isStartingVote,
@@ -384,6 +385,9 @@ function YourWord({
         <div className="word__vote">
           <h4>Who do you think is the imposter?</h4>
           <p className="word__vote-hint">Tap multiple names or &quot;No imposter&quot;</p>
+          {votedPlayerNames.length > 0 && (
+            <p className="word__vote-voters">Voted: {votedPlayerNames.join(', ')}</p>
+          )}
           {hasSubmitted ? (
             <div className="word__vote-waiting">
               <p>Waiting for others... {votedCount}/{totalPlayers} voted</p>

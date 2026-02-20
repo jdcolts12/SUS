@@ -451,6 +451,7 @@ button {
 .host-observer__vote-start, .host-observer__voting { margin-top: 1rem; }
 .host-observer__recap { margin-top: 1rem; }
 .host-observer__imposter { margin: 0.5rem 0; font-weight: 600; }
+.host-observer__voters { font-size: 0.9rem; color: var(--text-muted); margin: 0.25rem 0; }
 .host-observer__voted { margin: 0.5rem 0; color: var(--text-muted); }
 .host-observer__result { font-weight: 600; margin: 0.5rem 0; }
 .host-observer__result--crew { color: var(--success, #22c55e); }
@@ -644,6 +645,7 @@ button {
 .word__vote-btn--no-imposter {
   font-style: italic;
 }
+.word__vote-voters { font-size: 0.9rem; color: var(--text-muted); margin: 0.25rem 0 0; }
 .word__vote-waiting {
   padding: 0.5rem 0;
 }
