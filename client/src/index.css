@@ -445,7 +445,10 @@ button {
 .host-observer__value { font-size: 1.2rem; font-weight: 600; margin: 0; }
 .host-observer__vote-start, .host-observer__voting { margin-top: 1rem; }
 .host-observer__recap { margin-top: 1rem; }
+.host-observer__voted { margin: 0.5rem 0; color: var(--text-muted); }
 .host-observer__result { font-weight: 600; margin: 0.5rem 0; }
+.host-observer__result--crew { color: var(--success, #22c55e); }
+.host-observer__result--imposter { color: var(--accent); }
 .host-observer__actions { display: flex; gap: 1rem; margin-top: auto; flex-wrap: wrap; justify-content: center; }
 .host-observer__error {
   color: var(--accent);

@@ -253,11 +253,12 @@ function YourWord({
                     <p className="word__reveal-names">
                       Everyone had the same word.
                     </p>
-                    {revealData.votedPlayerName && (
-                      <p className="word__reveal-voted">
-                        The group voted out: {revealData.votedPlayerName}
-                      </p>
-                    )}
+                    <p className="word__reveal-voted">
+                      Voted out: {revealData.votedPlayerName || 'No one'}
+                    </p>
+                    <p className="word__reveal-result word__reveal-result--win">
+                      Crew wins!
+                    </p>
                   </>
                 ) : (
                   <>
@@ -269,11 +270,9 @@ function YourWord({
                     <p className="word__reveal-names">
                       {revealData.imposterNames?.join(' & ') || 'Unable to determine'}
                     </p>
-                    {revealData.votedPlayerName && (
-                      <p className="word__reveal-voted">
-                        You voted out: {revealData.votedPlayerName}
-                      </p>
-                    )}
+                    <p className="word__reveal-voted">
+                      Voted out: {revealData.votedPlayerName || 'No one'}
+                    </p>
                     <p className={`word__reveal-result ${revealData.teamWon ? 'word__reveal-result--win' : 'word__reveal-result--loss'}`}>
                       {revealData.teamWon
                         ? 'Crew wins!'
@@ -298,6 +297,10 @@ function YourWord({
             <div className="word__recap">
               <h2 className="word__recap-title">Game Recap</h2>
               <div className="word__recap-stats">
+                <p className="word__recap-row">
+                  <span className="word__recap-label">Voted out</span>
+                  <span className="word__recap-value">{revealData.votedPlayerName || 'No one'}</span>
+                </p>
                 {revealData.noImposterRound ? (
                   <p className="word__recap-winner word__recap-winner--crew">
                     Crew wins! (No imposter this round)

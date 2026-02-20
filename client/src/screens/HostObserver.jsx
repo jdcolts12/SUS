@@ -124,11 +124,21 @@ function HostObserver({
       {revealData && (
         <div className="host-observer__recap">
           <h3>Round Over</h3>
+          <p className="host-observer__voted">
+            Voted out: {revealData.votedPlayerName || 'No one'}
+          </p>
           {revealData.noImposterRound ? (
-            <p className="host-observer__result">No imposter – crew wins!</p>
+            <p className="host-observer__result host-observer__result--crew">Crew wins!</p>
           ) : (
-            <p className="host-observer__result">
-              {revealData.imposterNames?.join(' & ')} {revealData.teamWon ? '– Crew wins!' : revealData.survivingImposterName ? `– ${revealData.survivingImposterName} wins!` : '– Imposter wins!'}
+            <p className={`host-observer__result ${revealData.teamWon ? 'host-observer__result--crew' : 'host-observer__result--imposter'}`}>
+              {revealData.teamWon
+                ? 'Crew wins!'
+                : revealData.survivingImposterName
+                  ? `${revealData.survivingImposterName} wins!`
+                  : (() => {
+                      const names = revealData.imposterNames?.filter(Boolean) || [];
+                      return names.length > 1 ? `${names.join(' & ')} win!` : `${names[0] || 'Imposter'} wins!`;
+                    })()}
             </p>
           )}
         </div>
