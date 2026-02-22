@@ -21,6 +21,7 @@ function HostObserver({
   onNewRound,
   onNewCustomRound,
   onBackToLobby,
+  onGoHome,
   error,
   onClearError,
   onRetryConnection,
@@ -75,6 +76,11 @@ function HostObserver({
 
   return (
     <div className="host-observer">
+      <div className="host-observer__top">
+        <button type="button" className="btn btn--ghost btn--small home-btn" onClick={onGoHome} aria-label="Home">
+          Home
+        </button>
+      </div>
       {error && (
         <p className="host-observer__error" role="alert">
           {error}

@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import ConnectionHelp from './ConnectionHelp';
 
-function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onLeaderboard, onSignUp, onSignIn, error, connecting = false, onRetryConnection, serverHealthUrl }) {
-  const [mode, setMode] = useState(null);
+function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onLeaderboard, onSignUp, onSignIn, error, connecting = false, onRetryConnection, serverHealthUrl, initialMode, onConsumedInitialMode }) {
+  const [mode, setMode] = useState(initialMode || null);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [createAsCustom, setCreateAsCustom] = useState(false);
+
+  useEffect(() => {
+    if (initialMode) onConsumedInitialMode?.();
+  }, [initialMode, onConsumedInitialMode]);
 
   // Pre-fill name with username when logged in (ensures stats link to account)
   useEffect(() => {

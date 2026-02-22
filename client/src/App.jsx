@@ -24,6 +24,7 @@ function App() {
   const [userId, setUserId] = useState(() => localStorage.getItem('userId'));
   const [username, setUsername] = useState(() => localStorage.getItem('username'));
   const [socket, setSocket] = useState(null);
+  const [homeInitialMode, setHomeInitialMode] = useState(null);
 
   useEffect(() => {
     if (userId && !username) {
@@ -505,6 +506,21 @@ function App() {
     setScreen('lobby');
   };
 
+  const goHome = () => {
+    try {
+      sessionStorage.removeItem('sus_game');
+      sessionStorage.removeItem('sus_playerName');
+    } catch (_) {}
+    setGameState({ code: null, gameId: null, playerId: null, players: [], isHost: false, isCustom: false });
+    setWordData(null);
+    setVotePhase(null);
+    setRevealData(null);
+    setHostRoundReady(null);
+    setPlayerName('');
+    setError('');
+    setScreen(userId ? 'profile' : 'home');
+  };
+
   const startVote = () => {
     const { gameId, code, playerName: pn } = getGameCreds();
     if (!gameId || !code || !pn) {
@@ -592,6 +608,7 @@ function App() {
         onEditProfile={() => setScreen('edit-profile')}
         onFriends={() => setScreen('friends')}
         onLeaderboard={() => setScreen('leaderboard')}
+        onJoinGame={() => { setHomeInitialMode('join'); setScreen('home'); }}
         onBack={() => setScreen('home')}
         onSignOut={() => { localStorage.removeItem('userId'); localStorage.removeItem('username'); setUserId(null); setUsername(null); setScreen('home'); }}
       />
@@ -616,6 +633,14 @@ function App() {
 
   if (screen === 'friends' && userId) {
     return <Friends userId={userId} onBack={() => setScreen('profile')} />;
+  }
+
+  if (screen === 'leaderboard') {
+    return (
+      <Leaderboard
+        onBack={() => setScreen(userId ? 'profile' : 'home')}
+      />
+    );
   }
 
   if (screen === 'signup') {
@@ -653,6 +678,8 @@ function App() {
         connecting={connecting}
         onRetryConnection={retryConnection}
         serverHealthUrl={import.meta.env.VITE_SOCKET_URL ? `${import.meta.env.VITE_SOCKET_URL.replace(/\/$/, '')}/health` : null}
+        initialMode={homeInitialMode}
+        onConsumedInitialMode={() => setHomeInitialMode(null)}
       />
     );
   }
@@ -675,6 +702,7 @@ function App() {
           isCustom={gameState.isCustom}
           playerName={playerName}
           onStartGame={startGame}
+          onGoHome={goHome}
           error={error?.includes("Can't reach server") ? null : error}
         />
       </>
@@ -708,6 +736,7 @@ function App() {
             setScreen('host-observer');
           }}
           onBackToLobby={() => { setScreen('lobby'); setError(''); }}
+          onGoHome={goHome}
           error={error}
           onClearError={() => setError('')}
           onError={(msg) => setError(msg)}
@@ -747,6 +776,7 @@ function App() {
           onNewRound={newRound}
           onNewCustomRound={newCustomRound}
           onBackToLobby={() => { setScreen('lobby'); setHostRoundReady(null); setVotePhase(null); setRevealData(null); setError(''); }}
+          onGoHome={goHome}
           error={error}
           onClearError={() => setError('')}
           onRetryConnection={retryConnection}
@@ -804,6 +834,7 @@ function App() {
           setVotePhase('revealed');
           setRevealData(data);
         }}
+        onGoHome={goHome}
         error={error?.includes("Can't reach server") ? null : error}
         onClearError={() => setError('')}
         onRetryConnection={retryConnection}

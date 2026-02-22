@@ -10,6 +10,7 @@ function HostSetup({
   onRoundStarted,
   onHostRoundReady,
   onBackToLobby,
+  onGoHome,
   error,
   onClearError,
   onError,
@@ -100,6 +101,11 @@ function HostSetup({
 
   return (
     <div className="host-setup">
+      <div className="host-setup__top">
+        <button type="button" className="btn btn--ghost btn--small home-btn" onClick={onGoHome} aria-label="Home">
+          Home
+        </button>
+      </div>
       <h2 className="host-setup__title">Choose Round Type</h2>
       <p className="host-setup__hint">Pick a custom word (you observe) or auto-generate (you play).</p>
 

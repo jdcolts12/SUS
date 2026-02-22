@@ -82,6 +82,15 @@ button {
   font-size: 0.85rem;
   font-weight: 500;
 }
+.home-btn {
+  opacity: 0.9;
+}
+.lobby__top, .host-setup__top, .host-observer__top, .word__top {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
+}
 
 /* Home */
 .home {
@@ -270,6 +279,7 @@ button {
 }
 
 .lobby {
+  position: relative;
   min-height: 100%;
   padding: 2rem 1.5rem;
   display: flex;
@@ -364,6 +374,7 @@ button {
 
 /* Host Setup (custom game) */
 .host-setup, .host-observer {
+  position: relative;
   min-height: 100%;
   padding: 2rem 1.5rem;
   display: flex;
@@ -508,6 +519,7 @@ button {
   opacity: 0.8;
 }
 .word {
+  position: relative;
   min-height: 100%;
   padding: 2rem 1.5rem;
   display: flex;
@@ -850,6 +862,9 @@ button {
   display: flex;
   gap: 0.75rem;
   justify-content: center;
+}
+.profile__actions--secondary {
+  margin-top: 0.5rem;
 }
 .profile__stats {
   width: 100%;

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 
-function Profile({ userId, onEditProfile, onFriends, onBack, onSignOut }) {
+function Profile({ userId, onEditProfile, onFriends, onLeaderboard, onJoinGame, onBack, onSignOut }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -49,8 +49,11 @@ function Profile({ userId, onEditProfile, onFriends, onBack, onSignOut }) {
         <h1 className="profile__name">{user.username}</h1>
         <div className="profile__actions">
           <button className="btn btn--secondary" onClick={onLeaderboard}>Leaderboard</button>
-          <button className="btn btn--secondary" onClick={onEditProfile}>Edit Profile</button>
-          <button className="btn btn--secondary" onClick={onFriends}>Friends</button>
+          <button className="btn btn--secondary" onClick={onJoinGame}>Join Game</button>
+        </div>
+        <div className="profile__actions profile__actions--secondary">
+          <button className="btn btn--ghost" onClick={onEditProfile}>Edit Profile</button>
+          <button className="btn btn--ghost" onClick={onFriends}>Friends</button>
         </div>
       </div>
 

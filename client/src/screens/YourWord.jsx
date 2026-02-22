@@ -31,6 +31,7 @@ function YourWord({
   apiUrl,
   onRevealError,
   onRevealSuccess,
+  onGoHome,
   error,
   onClearError,
   onRetryConnection,
@@ -234,6 +235,11 @@ function YourWord({
 
   return (
     <div className="word">
+      <div className="word__top">
+        <button type="button" className="btn btn--ghost btn--small home-btn" onClick={onGoHome} aria-label="Home">
+          Home
+        </button>
+      </div>
       {error && (
         <p className="word__error" role="alert">
           {error}

@@ -1,4 +1,4 @@
-function Lobby({ code, players, isHost, isCustom, onStartGame, error }) {
+function Lobby({ code, players, isHost, isCustom, onStartGame, onGoHome, error }) {
   const shareUrl = typeof navigator !== 'undefined' && navigator.share
     ? () => {
         navigator.share({
@@ -16,6 +16,11 @@ function Lobby({ code, players, isHost, isCustom, onStartGame, error }) {
 
   return (
     <div className="lobby">
+      <div className="lobby__top">
+        <button type="button" className="btn btn--ghost btn--small home-btn" onClick={onGoHome} aria-label="Home">
+          Home
+        </button>
+      </div>
       <h2 className="lobby__title">Lobby</h2>
       <div className="lobby__code">
         <span className="lobby__code-label">Room code</span>
