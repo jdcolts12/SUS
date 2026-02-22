@@ -18,6 +18,7 @@ function SignIn({ onSignedIn, onBack, onSignUp }) {
     try {
       const { userId, username: name } = await api.signIn(username.trim(), password);
       localStorage.setItem('userId', userId);
+      localStorage.setItem('username', name || '');
       onSignedIn?.(userId, name);
     } catch (e) {
       setError(e.message);
@@ -29,7 +30,7 @@ function SignIn({ onSignedIn, onBack, onSignUp }) {
   return (
     <div className="signin">
       <h2>Sign In</h2>
-      <p className="signin__hint">Your login is saved when you reopen the game.</p>
+      <p className="signin__hint">You&apos;ll stay logged in on this device—no need to sign in again.</p>
       <form onSubmit={handleSubmit}>
         <input
           type="text"

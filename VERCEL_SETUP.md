@@ -1,15 +1,19 @@
-# Vercel Setup for Create Account to Work
+# Vercel Setup for Sign In / Create Account (Live)
 
-Create Account requires the **server** (on Render) to be reachable. The client needs to know the server URL.
+Sign in and Create Account require the **server** (on Render) to be reachable.
 
-**For persistent accounts & stats** on Render (free tier wipes data on sleep/deploy), see [TURSO_SETUP.md](./TURSO_SETUP.md).
+**Important:** For accounts to persist (so users stay logged in forever), you **must** set up [Turso](./TURSO_SETUP.md) on Render. Otherwise Render's free tier wipes the database when the server sleeps.
 
 ## 1. Deploy the server on Render
 
 If not already done: push to GitHub. Render will auto-deploy from the repo. Your server URL will be something like:
 `https://sus-server.onrender.com` (check your Render dashboard for the exact URL).
 
-## 2. Set VITE_SOCKET_URL in Vercel
+## 2. Set up Turso (required for persistent accounts)
+
+Without Turso, accounts are lost when the Render service sleeps or redeploys. See [TURSO_SETUP.md](./TURSO_SETUP.md) to add `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` to Render.
+
+## 3. Set VITE_SOCKET_URL in Vercel
 
 1. Go to [Vercel Dashboard](https://vercel.com) → your project (sus)
 2. **Settings** → **Environment Variables**
@@ -20,6 +24,6 @@ If not already done: push to GitHub. Render will auto-deploy from the repo. Your
 4. Click **Save**
 5. **Redeploy** the project: Deployments → ⋮ on latest → Redeploy
 
-## 3. Verify
+## 4. Verify
 
-After redeploying, hard refresh (Cmd+Shift+R) or use incognito. Create Account should work.
+After redeploying, hard refresh (Cmd+Shift+R) or use incognito. Create Account and Sign In should work. Users stay logged in on that device until they sign out.

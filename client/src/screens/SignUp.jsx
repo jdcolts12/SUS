@@ -23,6 +23,7 @@ function SignUp({ onSignedUp, onBack, onSignIn }) {
     try {
       const { userId, username: name } = await api.createUser(trimUser, password);
       localStorage.setItem('userId', userId);
+      localStorage.setItem('username', name || '');
       onSignedUp?.(userId, name);
     } catch (e) {
       setError(e.message);
@@ -34,7 +35,7 @@ function SignUp({ onSignedUp, onBack, onSignIn }) {
   return (
     <div className="signup">
       <h2>Create Account</h2>
-      <p className="signup__hint">Usernames are unique and can only be used once ever.</p>
+      <p className="signup__hint">Usernames are unique. Create once—you&apos;ll stay logged in on this device.</p>
       <form onSubmit={handleSubmit}>
         <input
           type="text"

@@ -12,8 +12,9 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 
-// Health check for Railway/deployment
-app.get('/health', (req, res) => res.json({ ok: true }));
+// Health check for deployment (db: turso = persistent, sqlite = ephemeral on Render)
+const USE_TURSO = !!(process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN);
+app.get('/health', (req, res) => res.json({ ok: true, db: USE_TURSO ? 'turso' : 'sqlite' }));
 
 // Categories + words for custom game host
 app.get('/api/categories', (req, res) => {
