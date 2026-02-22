@@ -48,22 +48,20 @@ function Home({ userId, username, onCreateGame, onJoinGame, onProfile, onLeaderb
         )}
       </div>
 
-      {!userId && (
-        <div className="home__auth-strip">
-          <button className="btn btn--primary" onClick={onSignUp}>Create account</button>
-          <button className="btn btn--secondary" onClick={onSignIn}>Sign in</button>
-        </div>
-      )}
-
       <div className="home__hero">
         <h1 className="home__title">SUS</h1>
         <p className="home__subtitle">One of you isn't who they seem</p>
       </div>
 
-      {!userId && (
-        <p className="home__auth-hint">Sign in to save stats to your account</p>
-      )}
-      {!mode ? (
+      {!userId ? (
+        <div className="home__auth-required">
+          <p className="home__auth-required-text">Sign in to play. You&apos;ll stay signed in when you return.</p>
+          <div className="home__auth-required-btns">
+            <button className="btn btn--primary" onClick={onSignUp}>Create account</button>
+            <button className="btn btn--secondary" onClick={onSignIn}>Sign in</button>
+          </div>
+        </div>
+      ) : !mode ? (
         <div className="home__actions">
           <button
             className="btn btn--primary"

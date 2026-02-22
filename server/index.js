@@ -487,6 +487,10 @@ function createGame(hostId, hostName, hostUserId, isCustom = false) {
 
 io.on('connection', (socket) => {
   socket.on('create-game', ({ playerName, userId, isCustom }) => {
+    if (!userId) {
+      socket.emit('create-error', { message: 'Sign in required to play. Create an account or sign in first.' });
+      return;
+    }
     const game = createGame(socket.id, playerName, userId, isCustom);
     socket.join(game.code);
     socket.emit('game-created', {
@@ -598,6 +602,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join-game', ({ code, playerName, userId }) => {
+    if (!userId) {
+      socket.emit('join-error', { message: 'Sign in required to play. Create an account or sign in first.' });
+      return;
+    }
     const gameId = roomCodes.get(code?.toUpperCase());
     if (!gameId) {
       socket.emit('join-error', { message: 'Room not found. Check the code!' });

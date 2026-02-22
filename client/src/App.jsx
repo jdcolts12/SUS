@@ -182,8 +182,14 @@ function App() {
       setScreen('lobby');
     });
 
+    s.on('create-error', ({ message }) => {
+      setConnecting(false);
+      setError(message || 'Sign in required to play.');
+    });
+
     s.on('join-error', ({ message }) => {
-      setError(message);
+      setConnecting(false);
+      setError(message || 'Sign in required to play.');
     });
 
     s.on('player-joined', ({ players }) => {
@@ -356,6 +362,10 @@ function App() {
   };
 
   const createGame = (name, isCustom = false) => {
+    if (!userId) {
+      setError('Sign in required to play. Create an account or sign in first.');
+      return;
+    }
     if (!socket) {
       setError('Loading... try again in a moment.');
       return;
@@ -370,6 +380,10 @@ function App() {
   };
 
   const joinGame = (code, name) => {
+    if (!userId) {
+      setError('Sign in required to play. Create an account or sign in first.');
+      return;
+    }
     if (!socket) {
       setError('Loading... try again in a moment.');
       return;
