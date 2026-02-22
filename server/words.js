@@ -5,7 +5,14 @@ export const wordCategories = {
     "Taylor Swift", "Beyoncé", "Tom Hanks", "Dwayne Johnson", "Rihanna",
     "Leonardo DiCaprio", "Oprah", "Adele", "Brad Pitt", "Drake",
     "Serena Williams", "Meryl Streep", "Emma Watson", "LeBron James", "Lady Gaga",
-    "Kim Kardashian", "Cristiano Ronaldo", "Kanye West", "The Rock", "Elon Musk"
+    "Kim Kardashian", "Cristiano Ronaldo", "Kanye West", "The Rock", "Elon Musk",
+    "Harry Styles", "Billie Eilish", "Bad Bunny", "Justin Bieber", "Selena Gomez",
+    "Ed Sheeran", "Bruno Mars", "The Weeknd", "Post Malone", "Dua Lipa",
+    "Travis Scott", "Kendrick Lamar", "Ariana Grande", "Justin Timberlake", "Shakira",
+    "Zendaya", "Timothée Chalamet", "Margot Robbie", "Ryan Reynolds", "Chris Hemsworth",
+    "Jennifer Lawrence", "Zac Efron", "Austin Butler", "Florence Pugh", "Sydney Sweeney",
+    "MrBeast", "Charli D'Amelio", "Khaby Lame", "Messi", "Travis Kelce",
+    "Patrick Mahomes", "Stephen Curry", "Kevin Hart", "Dave Chappelle", "Joe Rogan"
   ],
   "Food & Drinks": [
     "pizza", "coffee", "sushi", "tacos", "avocado toast", "kombucha",
@@ -92,6 +99,32 @@ export const wordCategories = {
     "dancing", "jogging", "scuba diving", "pottery", "collecting",
     "cycling", "karaoke", "meditation", "calligraphy", "magic tricks",
     "board games", "movie marathon", "stargazing", "travel", "journaling"
+  ],
+  "American Football": [
+    "Giants", "Jets", "Broncos", "Chargers", "Bengals",
+    "Browns", "Texans", "Colts", "Jaguars", "Titans",
+    "Falcons", "Panthers", "Saints", "Buccaneers", "Cardinals",
+    "Rams", "Seahawks", "Commanders", "Lions", "Buckeyes",
+    "mouthguard", "chinstrap", "thigh pads", "kicking tee", "hand warmer",
+    "play sheet", "ball cap", "knee brace", "arm sleeve",
+    "shotgun", "I-formation", "spread offense", "wishbone",
+    "nickel defense", "dime package", "cover two", "blitz", "read option",
+    "quarterback", "running back", "wide receiver", "tight end", "kicker",
+    "punter", "cornerback", "safety", "linebacker", "defensive end",
+    "touchdown", "field goal", "extra point", "sack", "interception",
+    "fumble", "hail mary", "flea flicker", "play action", "punt return"
+  ],
+  "School & College": [
+    "math", "English", "history", "science", "biology",
+    "chemistry", "physics", "Spanish", "French", "art",
+    "music", "gym", "geography", "computer science", "economics",
+    "psychology", "creative writing", "calculus", "algebra", "anatomy",
+    "textbook", "backpack", "laptop", "binder", "highlighter",
+    "planner", "lunchbox", "locker", "desk", "chalkboard",
+    "homework", "essay", "finals", "midterm", "group project",
+    "Harvard", "Yale", "Stanford", "MIT", "UCLA",
+    "Princeton", "Columbia", "NYU", "Duke", "Berkeley",
+    "study abroad", "dorm room", "cafeteria", "library", "office hours"
   ],
   "Apps & Websites": [
     "Instagram", "TikTok", "YouTube", "Spotify", "Netflix",
