@@ -156,7 +156,9 @@ function recordRoundResults(game, round, votedPlayerId, votedWasImposter, teamWo
   game.players.forEach((p) => {
     if (!p.userId) return;
     if (game.isCustom && p.id === game.hostId && !round?.hostPlays) return;
-    const wasImposter = round.imposterIds.includes(p.id);
+    // Use name fallback: socket id can change after reconnect, so round.imposterIds may not match
+    const wasImposter = round.imposterIds.includes(p.id)
+      || !!round.assignmentsByName?.[(p.name || '').toLowerCase()]?.isImposter;
     const won = wasImposter ? !votedWasImposter : teamWon;
     const voteCorrect = isVoteCorrect(game, round, p, votedPlayerId, votedWasImposter, teamWon);
     db.recordRoundResult(p.userId, wasImposter, won, voteCorrect)
