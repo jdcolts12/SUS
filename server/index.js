@@ -561,6 +561,18 @@ io.on('connection', (socket) => {
     if (game.status === 'playing' && game.currentRound) {
       const round = game.currentRound;
       const playingCount = getPlayingCount(game);
+      // Send vote state before your-word so client never clears votePhase mid-vote on reconnect
+      if (game.votePhase === 'voting') {
+        socket.emit('vote-started', { players: game.players, totalPlayers: playingCount });
+        if (game.votes) {
+          const vc = getVotedCount(game);
+          socket.emit('vote-received', {
+            votedCount: vc,
+            totalPlayers: playingCount,
+            votedPlayerNames: getVotedPlayerNames(game),
+          });
+        }
+      }
       if (game.isCustom && playerIsHost) {
         socket.emit('host-round-ready', {
           category: round.category,
@@ -579,21 +591,12 @@ io.on('connection', (socket) => {
             roundVariant: assignment.roundVariant,
             word: assignment.isImposter ? `${assignment.category}\n\nIMPOSTER` : assignment.word,
             isImposter: assignment.isImposter,
+            preserveVoteState: game.votePhase === 'voting',
           };
           socket.emit('your-word', payload);
         }
       }
-      if (game.votePhase === 'voting') {
-        socket.emit('vote-started', { players: game.players });
-        if (game.votes) {
-          const vc = getVotedCount(game);
-          socket.emit('vote-received', {
-            votedCount: vc,
-            totalPlayers: playingCount,
-            votedPlayerNames: getVotedPlayerNames(game),
-          });
-        }
-      } else if (game.votePhase === 'revealed' && game.lastReveal) {
+      if (game.votePhase === 'revealed' && game.lastReveal) {
         socket.emit('imposter-revealed', game.lastReveal);
       }
     }

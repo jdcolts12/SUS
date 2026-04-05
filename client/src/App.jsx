@@ -201,12 +201,15 @@ function App() {
     });
 
     s.on('your-word', (data) => {
+      const { preserveVoteState, ...wordPayload } = data;
       setWordData({
-        ...data,
-        roundVariant: data.roundVariant || 'normal',
+        ...wordPayload,
+        roundVariant: wordPayload.roundVariant || 'normal',
       });
-      setVotePhase(null);
-      setRevealData(null);
+      if (!preserveVoteState) {
+        setVotePhase(null);
+        setRevealData(null);
+      }
       setScreen('word');
     });
 
